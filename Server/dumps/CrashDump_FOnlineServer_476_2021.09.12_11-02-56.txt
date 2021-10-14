@@ -1,0 +1,107 @@
+Application
+	Name        FOnlineServer
+	Version     476
+	OS          6.2.9200 ()
+	Timestamp   2021.09.12 11:02:56
+
+Exception
+	Code      EXCEPTION_ACCESS_VIOLATION
+	Address   0x005F2A92
+	Flags     0x0
+	Info      Attempted to read to an 0x20CEB000
+
+Thread 'GUI' (2012, current)
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'Unknown' (244)
+	ntdll, NtWaitForMultipleObjects + 12
+	combase, CoGetObjectContext + 1492
+	combase, CoGetObjectContext + 1606
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'GUIUpdate' (4832)
+	ntdll, NtDelayExecution + 12
+	KERNELBASE, Sleep + 15
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'WorldSaveManager' (3228)
+	ntdll, NtWaitForSingleObject + 12
+	KERNELBASE, WaitForSingleObject + 18
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Loaded modules
+	D:\sdk\ress\Server\FOnlineServer.exe (00400000)
+	C:\Windows\SYSTEM32\ntdll.dll (77550000)
+	C:\Windows\SYSTEM32\KERNEL32.DLL (75530000)
+	C:\Windows\SYSTEM32\KERNELBASE.dll (74D90000)
+	C:\Windows\SYSTEM32\USER32.dll (75800000)
+	C:\Windows\SYSTEM32\ADVAPI32.dll (74E70000)
+	C:\Windows\SYSTEM32\WS2_32.dll (754E0000)
+	C:\Windows\SYSTEM32\dbghelp.dll (737D0000)
+	C:\Windows\SYSTEM32\PSAPI.DLL (74D30000)
+	C:\Windows\SYSTEM32\WINMM.dll (72E30000)
+	C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_5.82.9600.17810_none_7c5b6194aa0716f1\COMCTL32.dll (6A0D0000)
+	C:\Windows\SYSTEM32\GDI32.dll (750C0000)
+	C:\Windows\SYSTEM32\SHELL32.dll (75CE0000)
+	C:\Windows\SYSTEM32\ole32.dll (75670000)
+	C:\Windows\SYSTEM32\msvcrt.dll (75A70000)
+	C:\Windows\SYSTEM32\sechost.dll (74D40000)
+	C:\Windows\SYSTEM32\RPCRT4.dll (751D0000)
+	C:\Windows\SYSTEM32\NSI.dll (74F10000)
+	C:\Windows\SYSTEM32\WINMMBASE.dll (72E00000)
+	C:\Windows\SYSTEM32\combase.dll (75B40000)
+	C:\Windows\SYSTEM32\SHLWAPI.dll (75330000)
+	C:\Windows\SYSTEM32\SspiCli.dll (75CC0000)
+	C:\Windows\SYSTEM32\cfgmgr32.dll (75410000)
+	C:\Windows\SYSTEM32\DEVOBJ.dll (743D0000)
+	C:\Windows\SYSTEM32\CRYPTBASE.dll (74D20000)
+	C:\Windows\SYSTEM32\bcryptPrimitives.dll (74CC0000)
+	C:\Windows\system32\IMM32.DLL (77290000)
+	C:\Windows\SYSTEM32\MSCTF.dll (77170000)
+	C:\Windows\system32\uxtheme.dll (72D10000)
+	C:\Windows\system32\dwmapi.dll (72CF0000)
+	C:\Windows\SYSTEM32\kernel.appcore.dll (74710000)
+	C:\Windows\SYSTEM32\CRYPTSP.dll (74670000)
+	C:\Windows\system32\rsaenh.dll (74640000)
+	C:\Windows\SYSTEM32\bcrypt.dll (74620000)
+	C:\Windows\SYSTEM32\clbcatq.dll (75380000)
+	C:\Windows\system32\msimtf.dll (6BCE0000)
+	C:\Program Files (x86)\Common Files\microsoft shared\ink\tiptsf.dll (72110000)
+	C:\Windows\SYSTEM32\OLEAUT32.dll (759C0000)
+	C:\Windows\system32\mswsock.dll (723E0000)
+
+AngelScript
+	Not available

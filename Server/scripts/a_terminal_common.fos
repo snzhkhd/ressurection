@@ -1,0 +1,11 @@
+#include "_macros.fos"
+#include "entire.fos"
+#include "pids_groups.fos"
+
+
+bool s_terminal( Critter& player, Scenery& terminal, int skill, Item@ item )
+{
+    if( player.IsPlayer() && skill == -1 && not valid( item ) )
+        RunDialog( player, DIALOG_fraction_terminal, terminal.HexX, terminal.HexY, false );
+    return true;
+}

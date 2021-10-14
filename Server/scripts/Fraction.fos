@@ -1,0 +1,3978 @@
+#include "_macros.fos"
+#include "entire.fos"
+#include "_colors.fos"
+#ifdef __SERVER
+#define STR_BASE_ADD              (70100)
+#define STR_BASE_SPAWN            (70101)
+#define STR_BASE_WRON_LOC        (70102)
+ 
+
+int LastID = 0;
+ 
+const int _Pid_Caves=300;
+ 
+
+
+bool F_CreateFraction(string Name)
+{
+	file f;
+	string str;
+	
+	f.open("data/fraction.lst","r");
+
+	LastID+=1;
+	str = LastID+"="+Name+"\n\n";
+	f.open("data/fraction.lst","a");
+	f.writeString(str);
+	f.close();
+	
+	
+	f.open("data/fcid.txt","w");
+	f.writeString(LastID+"");
+	f.close();
+	return true;
+};
+
+
+ 
+bool Create_Base(Critter & player)
+{     
+    GameVar @ cave_id = GetLocalVar(LVAR_cave_id, player.Id);  
+		Critter @[] Group;
+        Critter @ Leader = player.GetFollowLeader(); 
+		if(!valid(Leader) ) @Leader = player; 
+		
+        Group.insertLast(@Leader);
+        Leader.GetFollowGroup(0x01,Group); 
+        uint locationId = CreateLocation(_Pid_Caves, player.WorldX, player.WorldY,Group);
+        if(locationId==0) return false; 
+     
+        Location @ location = GetLocation(locationId);  
+        if(!valid(location)) return false;  
+        location.AutoGarbage = false;  
+		
+		if (valid(cave_id) && cave_id.GetValue()!=0)  
+        {
+                DeleteLocation (cave_id.GetValue()); 
+                cave_id=locationId; 
+        }
+
+       location.Visible = false; 
+        location.Radius = 6; 
+		location.Color = COLOR_LEMON;
+        player.TransitToGlobal(Group);
+        return true;
+}
+void _PlayerVis_add(Map& map, Critter& player)
+{
+    if(!valid(player)) return;
+    Location@ loc=map.GetLocation();
+    player.SetKnownLoc (true,loc.Id);
+    player.SayMsg(SAY_NETMSG, TEXTMSG_TEXT, STR_BASE_ADD);
+   
+}
+void _MapInit(Map & map, bool firstTime)
+{
+    map.SetEvent(MAP_EVENT_IN_CRITTER, "_PlayerVis_add");}
+	
+	
+	
+	
+	
+	
+	
+	
+//-------------------------------
+
+string TokenFind = ">";
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+void SaveFactionName(int idFaction, string NameFaction)
+{
+ 	file fractions;
+	if( fractions.open( "save\\factionsnames.ini", "a" ) <= 0 )
+	{	
+				fractions.writeString( "\r\n"+"< "+idFaction+" "+NameFaction+" |" );																						
+	}
+	fractions.close();
+}
+ 
+
+void SaveFactionData(int id,int count,int Money,int Sierra,int Sobor,int Redding,int KillFactions,int KillNoFactions,int Exp,int Deads,int Online)
+{
+int idF=0;
+int countF=0;
+int MoneyF=0;
+int SierraF=0;
+int SoborF=0;
+int ReddingF=0;
+int KillFactionsF=0;
+int KillNoFactionsF=0;
+int ExpF=0;
+int DeadsF=0;
+int OnlineF=0;
+bool OldFile=false;
+
+	file createFaction;
+	if( createFaction.open( "save\\f"+id+".ini", "r" ) < 0 )
+	{
+		if( createFaction.open( "save\\f"+id+".ini", "a" ) == 0 )
+		{
+			createFaction.writeString( "\r\n"
+			+"> "+id
+			+ " "+count
+			+ " "+Money
+			+ " "+Sierra
+			+ " "+Sobor
+			+ " "+Redding
+			+ " "+KillFactions
+			+ " "+KillNoFactions
+			+ " "+Exp
+			+ " "+Deads
+			+ " "+Online);
+		}
+	}
+	else if ( createFaction.open( "save\\f"+id+".ini", "r" ) == 0 )
+	{
+		createFaction.setPos( 0 );
+		while( not createFaction.isEndOfFile() )
+		{
+			if( createFaction.readWord() == ">")
+			{
+				 idF = createFaction.readNumber();
+				 countF = createFaction.readNumber();
+				 MoneyF = createFaction.readNumber();
+				 SierraF = createFaction.readNumber();
+				 SoborF = createFaction.readNumber();
+				 ReddingF = createFaction.readNumber();
+				 KillFactionsF = createFaction.readNumber();
+				 KillNoFactionsF = createFaction.readNumber();
+				 ExpF = createFaction.readNumber();
+				 DeadsF = createFaction.readNumber();
+				 OnlineF = createFaction.readNumber();
+			}
+		}
+		OldFile=true;
+	}
+	createFaction.close();
+
+	
+	if (OldFile)
+	{
+			//idF=id;
+			countF+=count;
+			MoneyF+=Money;
+			SierraF+=Sierra;
+			SoborF+=Sobor;
+			ReddingF+=Redding;
+			KillFactionsF+=KillFactions;
+			KillNoFactionsF+=KillNoFactions;
+			ExpF+=Exp;
+			DeadsF+=Deads;
+			OnlineF+=Online;
+			
+			
+			file SaveFaction;
+			if( SaveFaction.open( "save\\f"+id+".ini", "w" ) == 0 )
+			{
+					SaveFaction.writeString( "\r\n"
+					+"> "+id
+					+ " "+countF
+					+ " "+MoneyF
+					+ " "+SierraF
+					+ " "+SoborF
+					+ " "+ReddingF
+					+ " "+KillFactionsF
+					+ " "+KillNoFactionsF
+					+ " "+ExpF
+					+ " "+DeadsF
+					+ " "+OnlineF);
+			}
+			SaveFaction.close();
+	}
+}
+ 
+
+void AddSaveFactionDataExt(Critter@ cr, int Access )
+{
+	int idCritter = cr.Id;
+	int idfaction = cr.Param[PLAYER_FACTION];
+	string NameCritter = cr.Name;				
+	bool NeedSave=true;
+
+	file fp;
+	if( fp.open(  "save\\ff"+idfaction+".ini", "r" ) == 0 )
+	{
+		fp.setPos( 0 );
+		while( not fp.isEndOfFile() )
+		{
+			if( fp.readWord() == TokenFind)
+			{
+				int IdPlayer = fp.readNumber();
+				string NamePlayer = fp.readWord();
+				int PlayerAccess = fp.readNumber();
+				if (idCritter==IdPlayer)
+				{
+					NeedSave=false;
+				}
+			}	
+		}
+	}
+	fp.close();	
+	
+	if (NeedSave)
+	{	
+		file f;
+		if( f.open( "save\\ff"+idfaction+".ini", "a" ) == 0 )
+		{
+			f.setPos( 0 );
+			f.writeString( "\r\n"+"> "+idCritter+" "+NameCritter+" "+Access );
+		}
+		f.close();
+	}	
+}
+ 
+ 
+void DelSaveFactionDataExt(Critter@ cr)
+{
+	int idCritter = cr.Id;
+	int idfaction = cr.Param[PLAYER_FACTION];
+	
+	if (idfaction==0)return;
+	
+	file ff1;
+	if( ff1.open( "save\\delff"+idfaction+".ini", "w" ) == 0 )
+	{
+									
+	}
+	ff1.close();	
+							
+	
+	
+	
+	file f;
+	if( f.open( "save\\ff"+idfaction+".ini", "r" ) == 0 )
+	{
+		f.setPos( 0 );
+		while( not f.isEndOfFile() )
+		{
+			if( f.readWord() == TokenFind)
+			{
+				int IdPlayer = f.readNumber();
+				string NamePlayer = f.readWord();
+				int PlayerAccess=-1;
+						
+				while( PlayerAccess==-1 )
+				{
+					int Position = f.getPos();
+					int NumberAccess = f.readNumber();
+					if(NumberAccess==0 
+					|| NumberAccess==1 
+					|| NumberAccess==2 
+					|| NumberAccess==3 
+					|| NumberAccess==4
+					|| NumberAccess==5
+					|| NumberAccess==6
+					|| NumberAccess==7
+					|| NumberAccess==8
+					)
+					{
+						PlayerAccess=NumberAccess;
+					}
+					else
+					{
+						f.setPos(Position);
+						string NamePlayerPart2 = f.readWord();
+						NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+					}
+				}
+							
+				if (idCritter==IdPlayer)
+				{
+					IdPlayer=0;
+					NamePlayer="";
+					PlayerAccess=0;
+				}
+							
+							
+				if (IdPlayer!=0)
+				{
+					file ff;
+					if( ff.open( "save\\delff"+idfaction+".ini", "a" ) == 0 )
+					{
+						ff.setPos( 0 );
+						ff.writeString( "\r\n"+"> "+IdPlayer+" "+NamePlayer+" "+PlayerAccess );
+					}
+					ff.close();	
+				}				
+			}		
+		}
+	}
+	f.close();
+
+	
+
+	file f1;
+	if( f1.open( "save\\ff"+idfaction+".ini", "w" ) == 0 )
+	{
+			
+	}
+	f1.close();
+	
+	
+	
+	file f2;
+	if( f2.open( "save\\delff"+idfaction+".ini", "r" ) == 0 )
+		{
+			f2.setPos( 0 );
+			while( not f2.isEndOfFile() )
+				{
+					if( f2.readWord() == TokenFind)
+						{
+							int IdPlayer = f2.readNumber();
+							string NamePlayer = f2.readWord();
+							//int PlayerAccess = f2.readNumber();
+							
+						int PlayerAccess=-1;
+						while( PlayerAccess==-1 )
+							{
+								int Position = f2.getPos();
+								int NumberAccess = f2.readNumber();
+									if(NumberAccess==0 
+									|| NumberAccess==1 
+									|| NumberAccess==2 
+									|| NumberAccess==3 
+									|| NumberAccess==4
+									|| NumberAccess==5
+									|| NumberAccess==6
+									|| NumberAccess==7
+									|| NumberAccess==8
+									)									
+									{
+										PlayerAccess=NumberAccess;
+									}
+								else
+									{
+										f2.setPos(Position);
+										string NamePlayerPart2 = f2.readWord();
+										NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+									}
+							}	
+				
+								
+							
+							
+							if (IdPlayer!=0)
+							{
+								file ff2;
+								if( ff2.open( "save\\ff"+idfaction+".ini", "a" ) == 0 )
+									{
+										ff2.setPos( 0 );
+										ff2.writeString( "\r\n"+"> "+IdPlayer+" "+NamePlayer+" "+PlayerAccess );
+									}
+								ff2.close();	
+							}
+
+							
+						}
+					
+				}
+		}
+	f2.close();
+	
+	
+	
+}
+
+ 
+void TakeFactionInfo(Critter@ cr)
+{
+	int idCritter = cr.Id;
+	int idfaction = cr.Param[PLAYER_FACTION];
+	
+	cr.Say(SAY_NETMSG,"|0xFF0000"+" ==========FACTION LIST==========");
+	
+	file f;
+	if( f.open( "save\\ff"+idfaction+".ini", "r" ) == 0 )
+	{
+		f.setPos( 0 );
+		while( not f.isEndOfFile() )
+		{
+			if( f.readWord() == TokenFind)
+			{
+				int IdPlayer = f.readNumber();
+				string NamePlayer = f.readWord();
+				int PlayerAccess=-1;
+				while( PlayerAccess==-1 )
+				{
+					int Position = f.getPos();
+					int NumberAccess = f.readNumber();
+					if(NumberAccess==0 
+					|| NumberAccess==1 
+					|| NumberAccess==2 
+					|| NumberAccess==3 
+					|| NumberAccess==4
+					|| NumberAccess==5
+					|| NumberAccess==6
+					|| NumberAccess==7
+					|| NumberAccess==8
+					)									
+					{
+						PlayerAccess=NumberAccess;
+					}
+					else
+					{
+						f.setPos(Position);
+						string NamePlayerPart2 = f.readWord();
+						NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+					}
+				}
+				cr.Say(SAY_NETMSG,"|0xFF0000"+" id: "+"|0xFFFFFF"+" "+IdPlayer+" "+"|0xFF0000"+" Name: "+"|0xFFFFFF"+" "+NamePlayer+" "+"|0xFF0000"+" Access: "+"|0xFFFFFF"+" "+PlayerAccess);						
+			}		
+		}
+	}
+	f.close();
+
+	cr.Say(SAY_NETMSG,"|0xFF0000"+" ==============================");
+	
+}
+ 
+ 
+bool inFaction(Critter@ cr, int idfaction)
+{
+	int idCritter = cr.Id;			
+	bool seeBase=false;
+
+	file fp;
+	if( fp.open( "save\\ff"+idfaction+".ini", "r" ) == 0 )
+	{
+		fp.setPos( 0 );
+		while( not fp.isEndOfFile() )
+		{
+			if( fp.readWord() == TokenFind)
+			{
+				int IdPlayer = fp.readNumber();
+				if (idCritter==IdPlayer)
+				{
+					seeBase=true;
+				}
+			}		
+		}
+	}
+	fp.close();
+
+	if (seeBase) return true;		
+	return false;
+}
+
+
+bool inFactionId(int idCritter,int idfaction)
+{	
+	bool seeBase=false;
+
+	file fp;
+	if( fp.open( "save\\ff"+idfaction+".ini", "r" ) == 0 )
+	{
+		fp.setPos( 0 );
+		while( not fp.isEndOfFile() )
+		{
+			if( fp.readWord() == TokenFind)
+			{
+				int IdPlayer = fp.readNumber();
+				if (idCritter==IdPlayer)
+				{
+					seeBase=true;
+				}
+			}	
+		}
+	}
+	fp.close();
+
+	if (seeBase)return true;		
+	return false;
+}
+
+void EditAccessFaction(Critter@ cr, int NeedAccess)
+{
+	int idCritter = cr.Id;
+	int idfaction = cr.Param[PLAYER_FACTION];
+	string NameCritter = cr.Name;				
+	bool NeedEdit=false;
+
+	file ff1;
+	if( ff1.open( "save\\delff"+idfaction+".ini", "w" ) == 0 )
+	{
+											
+	}
+	ff1.close();	
+	
+	
+	file fp;
+	if( fp.open( "save\\ff"+idfaction+".ini", "r" ) == 0 )
+	{
+		fp.setPos( 0 );
+		while( not fp.isEndOfFile() )
+		{
+			if( fp.readWord() == TokenFind)
+			{
+				int IdPlayer = fp.readNumber();
+				string NamePlayer = fp.readWord();
+				int PlayerAccess=-1;
+				while( PlayerAccess==-1 )
+				{
+					int Position = fp.getPos();
+					int NumberAccess = fp.readNumber();
+					if(NumberAccess==0 
+					|| NumberAccess==1 
+					|| NumberAccess==2 
+					|| NumberAccess==3 
+					|| NumberAccess==4
+					|| NumberAccess==5
+					|| NumberAccess==6
+					|| NumberAccess==7
+					|| NumberAccess==8
+					)									
+					{
+						PlayerAccess=NumberAccess;
+					}
+					else
+					{
+						fp.setPos(Position);
+						string NamePlayerPart2 = fp.readWord();
+						NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+					}
+				}
+							
+				if (idCritter==IdPlayer)
+				{
+					PlayerAccess=NeedAccess;
+				}
+								
+
+				file ff;
+				if( ff.open( "save\\delff"+idfaction+".ini", "a" ) == 0 )
+				{
+					ff.setPos( 0 );
+					ff.writeString( "\r\n"+"> "+IdPlayer+" "+NamePlayer+" "+PlayerAccess );
+				}
+				ff.close();		
+			}		
+		}
+	}
+	fp.close();	
+	
+	
+	
+	
+	
+
+	
+		file f1;
+	if( f1.open( "save\\ff"+idfaction+".ini", "w" ) == 0 )
+		{
+		
+		
+		}
+	f1.close();
+	
+	
+	
+	
+	
+	
+	
+	file f2;
+	if( f2.open( "save\\delff"+idfaction+".ini", "r" ) == 0 )
+		{
+			f2.setPos( 0 );
+			while( not f2.isEndOfFile() )
+				{
+					if( f2.readWord() == TokenFind)
+						{
+							int IdPlayer = f2.readNumber();
+							string NamePlayer = f2.readWord();
+							//int PlayerAccess = f2.readNumber();
+							
+						int PlayerAccess=-1;
+						while( PlayerAccess==-1 )
+							{
+								int Position = f2.getPos();
+								int NumberAccess = f2.readNumber();
+								if(NumberAccess==0 
+								|| NumberAccess==1 
+								|| NumberAccess==2 
+								|| NumberAccess==3 
+								|| NumberAccess==4
+								|| NumberAccess==5
+								|| NumberAccess==6
+								|| NumberAccess==7
+								|| NumberAccess==8
+								)									
+								{
+									PlayerAccess=NumberAccess;
+								}
+								else
+									{
+										f2.setPos(Position);
+										string NamePlayerPart2 = f2.readWord();
+										NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+									}
+							}	
+				
+								
+							
+							
+							if (IdPlayer!=0)
+							{
+								file ff2;
+								if( ff2.open( "save\\ff"+idfaction+".ini", "a" ) == 0 )
+									{
+										ff2.setPos( 0 );
+										ff2.writeString( "\r\n"+"> "+IdPlayer+" "+NamePlayer+" "+PlayerAccess );
+									}
+								ff2.close();	
+							}
+
+							
+						}
+					
+				}
+		}
+	f2.close();
+	
+	
+}
+	
+	
+
+void EditAccessFactionID(int idCritter,int idfaction,int NeedAccess)
+{
+	//string NameCritter = cr.Name;				
+	bool NeedEdit=false;
+
+	file ff1;
+	if( ff1.open( "save\\delff"+idfaction+".ini", "w" ) == 0 )
+	{
+											
+	}
+	ff1.close();	
+	
+	
+	file fp;
+	if( fp.open( "save\\ff"+idfaction+".ini", "r" ) == 0 )
+	{
+		fp.setPos( 0 );
+		while( not fp.isEndOfFile() )
+		{
+			if( fp.readWord() == TokenFind)
+			{
+				int IdPlayer = fp.readNumber();
+				string NamePlayer = fp.readWord();
+				int PlayerAccess=-1;
+				while( PlayerAccess==-1 )
+				{
+					int Position = fp.getPos();
+					int NumberAccess = fp.readNumber();
+					if(NumberAccess==0 
+					|| NumberAccess==1 
+					|| NumberAccess==2 
+					|| NumberAccess==3 
+					|| NumberAccess==4
+					|| NumberAccess==5
+					|| NumberAccess==6
+					|| NumberAccess==7
+					|| NumberAccess==8
+					)									
+					{
+						PlayerAccess=NumberAccess;
+					}
+					else
+					{
+						fp.setPos(Position);
+						string NamePlayerPart2 = fp.readWord();
+						NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+					}
+				}
+							
+				if (idCritter==IdPlayer)
+				{
+					PlayerAccess=NeedAccess;
+				}
+								
+
+				file ff;
+				if( ff.open( "save\\delff"+idfaction+".ini", "a" ) == 0 )
+				{
+					ff.setPos( 0 );
+					ff.writeString( "\r\n"+"> "+IdPlayer+" "+NamePlayer+" "+PlayerAccess );
+				}
+				ff.close();		
+			}		
+		}
+	}
+	fp.close();	
+	
+	
+	
+	
+	
+
+	
+		file f1;
+	if( f1.open( "save\\ff"+idfaction+".ini", "w" ) == 0 )
+		{
+		
+		
+		}
+	f1.close();
+	
+	
+	
+	
+	
+	
+	
+	file f2;
+	if( f2.open( "save\\delff"+idfaction+".ini", "r" ) == 0 )
+		{
+			f2.setPos( 0 );
+			while( not f2.isEndOfFile() )
+				{
+					if( f2.readWord() == TokenFind)
+						{
+							int IdPlayer = f2.readNumber();
+							string NamePlayer = f2.readWord();
+							//int PlayerAccess = f2.readNumber();
+							
+						int PlayerAccess=-1;
+						while( PlayerAccess==-1 )
+							{
+								int Position = f2.getPos();
+								int NumberAccess = f2.readNumber();
+								if(NumberAccess==0 
+								|| NumberAccess==1 
+								|| NumberAccess==2 
+								|| NumberAccess==3 
+								|| NumberAccess==4
+								|| NumberAccess==5
+								|| NumberAccess==6
+								|| NumberAccess==7
+								|| NumberAccess==8
+								)									
+								{
+									PlayerAccess=NumberAccess;
+								}
+								else
+									{
+										f2.setPos(Position);
+										string NamePlayerPart2 = f2.readWord();
+										NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+									}
+							}	
+				
+								
+							
+							
+							if (IdPlayer!=0)
+							{
+								file ff2;
+								if( ff2.open( "save\\ff"+idfaction+".ini", "a" ) == 0 )
+									{
+										ff2.setPos( 0 );
+										ff2.writeString( "\r\n"+"> "+IdPlayer+" "+NamePlayer+" "+PlayerAccess );
+									}
+								ff2.close();	
+							}
+
+							
+						}
+					
+				}
+		}
+	f2.close();
+	
+	
+}	
+	
+
+int TakeAccessFaction(Critter@ cr)
+	{
+	
+		int idCritter = cr.Id;
+		int idfaction = cr.Param[PLAYER_FACTION];
+		if (idfaction==0)return 0;
+		
+		bool seeBase=false;
+		
+		file fp;
+		if( fp.open( "save\\ff"+idfaction+".ini", "r" ) == 0 )
+		{
+			fp.setPos( 0 );
+			while( not fp.isEndOfFile() )
+			{
+				if( fp.readWord() == TokenFind)
+				{
+					int IdPlayer = fp.readNumber();
+					string NamePlayer = fp.readWord();
+					int PlayerAccess=-1;
+					while( PlayerAccess==-1 )
+					{
+						int Position = fp.getPos();
+						int NumberAccess = fp.readNumber();
+						if(NumberAccess==0 
+						|| NumberAccess==1 
+						|| NumberAccess==2 
+						|| NumberAccess==3 
+						|| NumberAccess==4
+						|| NumberAccess==5
+						|| NumberAccess==6
+						|| NumberAccess==7
+						|| NumberAccess==8
+						)									
+						{
+							PlayerAccess=NumberAccess;
+						}
+						else
+						{
+							fp.setPos(Position);
+							string NamePlayerPart2 = fp.readWord();
+							NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+						}
+					}
+									
+					if (idCritter==IdPlayer)
+					{
+						return PlayerAccess;
+					}
+				}			
+			}
+		}
+		fp.close();
+		
+		return 0;
+	}
+
+	
+void TestAdd(Critter@ cr)
+{
+	int idCritter = cr.Id;
+	int idfaction = cr.Param[PLAYER_FACTION];
+	string NameCritter = cr.Name;				
+	bool NeedSave=true;
+
+
+		
+	file f;
+	if( f.open( "save\\ffTEST"+idfaction+".ini", "a" ) == 0 )
+	{
+		f.setPos( 0 );
+		f.writeString( "\r\n"+"> "+idCritter+" "+NameCritter+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+11+" "+"Мастер Фломастер"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+12+" "+"ФФыы"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+13+" "+"Master Baster"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+14+" "+"Flouter"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+15+" "+"Kikimor"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+16+" "+"U U UOOO"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+17+" "+"WWW WWW I"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+18+" "+"SAYADIA"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+19+" "+"INITIALIZATED"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+20+" "+"TYTYTYTYTYTY"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+21+" "+"Uhwh89DADA"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+22+" "+"Interesno9"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+23+" "+"NETO4toNado8"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+23+" "+"TestEnd6"+" "+Random(0,100) );
+		f.writeString( "\r\n"+"> "+25+" "+"Test END7"+" "+Random(0,100) );
+	}
+	f.close();
+	TestDel(idCritter, idfaction );
+}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+void TestDel(int idCritter, int idfaction )
+{
+
+	if (idfaction==0)return;
+	
+	file ff1;
+	if( ff1.open( "save\\delfftest"+idfaction+".ini", "w" ) == 0 )
+	{
+									
+	}
+	ff1.close();	
+							
+	
+	
+	
+	file f;
+	if( f.open( "save\\ffTEST"+idfaction+".ini", "r" ) == 0 )
+	{
+		f.setPos( 0 );
+		while( not f.isEndOfFile() )
+		{
+			if( f.readWord() == TokenFind)
+			{
+				int IdPlayer = f.readNumber();
+				string NamePlayer = f.readWord();
+				int PlayerAccess=-1;
+						
+				while( PlayerAccess==-1 )
+				{
+					int Position = f.getPos();
+					int NumberAccess = f.readNumber();
+					if(NumberAccess==0 
+					|| NumberAccess==1 
+					|| NumberAccess==2 
+					|| NumberAccess==3 
+					|| NumberAccess==4
+					|| NumberAccess==5
+					|| NumberAccess==6
+					|| NumberAccess==7
+					|| NumberAccess==8
+					)
+					{
+						PlayerAccess=NumberAccess;
+					}
+					else
+					{
+						f.setPos(Position);
+						string NamePlayerPart2 = f.readWord();
+						NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+					}
+				}
+							
+				if (idCritter==IdPlayer)
+				{
+					IdPlayer=0;
+					NamePlayer="";
+					PlayerAccess=0;
+				}
+							
+							
+				if (IdPlayer!=0)
+				{
+					file ff;
+					if( ff.open( "save\\delfftest"+idfaction+".ini", "a" ) == 0 )
+					{
+						ff.setPos( 0 );
+						ff.writeString( "\r\n"+"> "+IdPlayer+" "+NamePlayer+" "+PlayerAccess );
+					}
+					ff.close();	
+				}				
+			}		
+		}
+	}
+	f.close();
+
+	
+
+	/*file f1;
+	if( f1.open( "save\\ffTEST"+idfaction+".ini", "w" ) == 0 )
+	{
+			
+	}
+	f1.close();*/
+	
+	
+	
+	file f2;
+	if( f2.open( "save\\delfftest"+idfaction+".ini", "r" ) == 0 )
+		{
+			f2.setPos( 0 );
+			while( not f2.isEndOfFile() )
+				{
+					if( f2.readWord() == TokenFind)
+						{
+							int IdPlayer = f2.readNumber();
+							string NamePlayer = f2.readWord();
+							//int PlayerAccess = f2.readNumber();
+							
+						int PlayerAccess=-1;
+						while( PlayerAccess==-1 )
+							{
+								int Position = f2.getPos();
+								int NumberAccess = f2.readNumber();
+									if(NumberAccess==0 
+									|| NumberAccess==1 
+									|| NumberAccess==2 
+									|| NumberAccess==3 
+									|| NumberAccess==4
+									|| NumberAccess==5
+									|| NumberAccess==6
+									|| NumberAccess==7
+									|| NumberAccess==8
+									)									
+									{
+										PlayerAccess=NumberAccess;
+									}
+								else
+									{
+										f2.setPos(Position);
+										string NamePlayerPart2 = f2.readWord();
+										NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+									}
+							}	
+				
+								
+							
+							
+							if (IdPlayer!=0)
+							{
+								file ff2;
+								if( ff2.open( "save\\ffTEST2"+idfaction+".ini", "a" ) == 0 )
+									{
+										ff2.setPos( 0 );
+										ff2.writeString( "\r\n"+"> "+IdPlayer+" "+NamePlayer+" "+PlayerAccess );
+									}
+								ff2.close();	
+							}
+
+							
+						}
+					
+				}
+		}
+	f2.close();
+	
+	
+	
+}
+	
+	
+	
+	
+	
+void TestSaveAndDEL(Critter@ cr,int NeedAccess)
+{
+	int idCritter = cr.Id;
+	int idfaction = cr.Param[PLAYER_FACTION];
+	
+	cr.Say(SAY_NETMSG,"|0xFF0000"+" ==========FACTION LIST==========");
+		bool NeedEdit=false;
+
+	file ff1;
+	if( ff1.open( "save\\delfftest"+idfaction+".ini", "w" ) == 0 )
+	{
+											
+	}
+	ff1.close();	
+	
+	
+	file fp;
+	if( fp.open( "save\\ffTEST"+idfaction+".ini", "r" ) == 0 )
+	{
+		fp.setPos( 0 );
+		while( not fp.isEndOfFile() )
+		{
+			if( fp.readWord() == TokenFind)
+			{
+				int IdPlayer = fp.readNumber();
+				string NamePlayer = fp.readWord();
+				int PlayerAccess=-1;
+				while( PlayerAccess==-1 )
+				{
+					int Position = fp.getPos();
+					int NumberAccess = fp.readNumber();
+					if(NumberAccess==0 
+					|| NumberAccess==1 
+					|| NumberAccess==2 
+					|| NumberAccess==3 
+					|| NumberAccess==4
+					|| NumberAccess==5
+					|| NumberAccess==6
+					|| NumberAccess==7
+					|| NumberAccess==8
+					)									
+					{
+						PlayerAccess=NumberAccess;
+					}
+					else
+					{
+						fp.setPos(Position);
+						string NamePlayerPart2 = fp.readWord();
+						NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+					}
+				}
+							
+				if (idCritter==IdPlayer)
+				{
+					PlayerAccess=NeedAccess;
+				}
+								
+
+				file ff;
+				if( ff.open( "save\\delfftest"+idfaction+".ini", "a" ) == 0 )
+				{
+					ff.setPos( 0 );
+					ff.writeString( "\r\n"+"> "+IdPlayer+" "+NamePlayer+" "+PlayerAccess );
+				}
+				ff.close();		
+			}		
+		}
+	}
+	fp.close();	
+	
+	
+	
+	
+	
+
+	
+		file f1;
+	if( f1.open( "save\\ffTEST"+idfaction+".ini", "w" ) == 0 )
+		{
+		
+		
+		}
+	f1.close();
+	
+	
+	
+	
+	
+	
+	
+	file f2;
+	if( f2.open( "save\\delfftest"+idfaction+".ini", "r" ) == 0 )
+		{
+			f2.setPos( 0 );
+			while( not f2.isEndOfFile() )
+				{
+					if( f2.readWord() == TokenFind)
+						{
+							int IdPlayer = f2.readNumber();
+							string NamePlayer = f2.readWord();
+							//int PlayerAccess = f2.readNumber();
+							
+						int PlayerAccess=-1;
+						while( PlayerAccess==-1 )
+							{
+								int Position = f2.getPos();
+								int NumberAccess = f2.readNumber();
+								if(NumberAccess==0 
+								|| NumberAccess==1 
+								|| NumberAccess==2 
+								|| NumberAccess==3 
+								|| NumberAccess==4
+								|| NumberAccess==5
+								|| NumberAccess==6
+								|| NumberAccess==7
+								|| NumberAccess==8
+								)									
+								{
+									PlayerAccess=NumberAccess;
+								}
+								else
+									{
+										f2.setPos(Position);
+										string NamePlayerPart2 = f2.readWord();
+										NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+									}
+							}	
+				
+								
+							
+							
+							if (IdPlayer!=0)
+							{
+								file ff2;
+								if( ff2.open( "save\\ffTEST"+idfaction+".ini", "a" ) == 0 )
+									{
+										ff2.setPos( 0 );
+										ff2.writeString( "\r\n"+"> "+IdPlayer+" "+NamePlayer+" "+PlayerAccess );
+									}
+								ff2.close();	
+							}
+
+							
+						}
+					
+				}
+		}
+	f2.close();
+
+	cr.Say(SAY_NETMSG,"|0xFF0000"+" ==============================");
+	
+}
+ 	
+ //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+ //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+//СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+//СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+//СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+//СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+//СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+//СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+//СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+//СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+//СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+//СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== //СОЗДАНИЕ ФРАКЦИИ=== 
+
+ 
+ 
+void r_NewFraction( Critter& player, Critter@ npc )
+{
+	SayCreateFraction(player,0,0,0) ;
+}
+
+void SayCreateFraction( Critter& player, int p0, int p1, int p2 ) 
+	{
+    player.ShowScreen( SCREEN_SAY, 0, "answer_createfaction" );
+    //player.Say( SAY_SAY_TITLE, "Введите название фракции! " );
+	player.SayMsg( SAY_SAY_TITLE, TEXTMSG_GAME, 20171);
+    }
+   
+
+//import void SaveFactionData(int id,int count,int Money,int Sierra,int Sobor,int Redding,int KillFactions,int KillNoFactions,int Exp,int Deads,int Online) from "client_party";
+
+
+
+void answer_createfaction( Critter& player, uint answerI, string& answerS )
+{	   
+	Map@ map = player.GetMap();
+	string NumberFraction;
+	int NumberFractionInt=0;
+	player.Say( SAY_NETMSG, "работает или как?");
+	// Length
+    if( answerS.length() < 3 || answerS.length() > 12 )
+	{
+		//player.Say( SAY_NETMSG, "Минимальная длинна 3 символа, максимальная 12");
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20172);
+        return;
+	}
+	
+	// Valid letters
+    string allLetters = __ValidNameLettersCommon + __ValidNameLettersCulture1 + __ValidNameLettersCulture2;
+    for( uint i = 0, j = answerS.length(); i < j; i++ )
+	{
+        if( findFirst( allLetters, answerS[ i ] ) == -1 )
+		{
+			//player.Say( SAY_NETMSG, "Вы используете запрещенный символ. Попросите Администратора после переименовать вас как вы желаете");
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20173);
+            return;	
+		}
+	}
+			
+	// Spaces
+    if( answerS[ 0 ] == " " || answerS[ -1 ] == " " ) return;
+    for( int i = 0, j = answerS.length() - 1; i < j; i++ )
+	{
+        if( answerS[ i ] == " " && answerS[ i + 1 ] == " " )
+		{
+			//player.Say( SAY_NETMSG, "Два повторяющихся пробела. Пробелы в названиях фракций - не используйте.Попросите Администратора переименовать после");
+            player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20174); 
+		    return;
+		}
+	}
+			
+	// Different cultures
+    uint letters1 = 0;
+    uint letters2 = 0;
+    for( int i = 0, j = answerS.length() - 1; i < j; i++ )
+    {
+        if( findFirst( __ValidNameLettersCulture1, answerS[ i ] ) != -1 )
+            letters1++;
+        else if( findFirst( __ValidNameLettersCulture2, answerS[ i ] ) != -1 )
+            letters2++;
+    }
+    if( letters1 > 0 && letters2 > 0 )
+	{
+		//player.Say( SAY_NETMSG, "Вы используете два разных языка. Используйте один. Русский или Английский");
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20175); 
+        return;
+	}
+	
+	// Too many common symbols
+    if( ( letters1 + letters2 ) * 100 / answerS.length() < 70 )
+	{ 
+		//player.Say( SAY_NETMSG, "Слишком много символов, называйте также, как и имя. Длинна макс 12" );
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20176); 
+		return;
+	}
+			
+	for( uint Fara = 1; Fara < answerS.length(); Fara++ )
+	{
+		if( answerS[ Fara ] == "  " )
+		{
+			answerS[ Fara ] = " ";
+			//player.Say( SAY_NETMSG, "Вы использовали в названии пробел. Он заменен на знак:  -  " );
+			//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20177); 
+		}
+	}		
+
+	if (player.GetAccess()!=3)
+	{
+		if (answerS=="Admin") answerS="FakeAdmin1";	
+		if (answerS=="Administrator") answerS="FakeAdmin2";	
+		if (answerS=="Админ") answerS="FakeAdmin3";	
+		if (answerS=="Администратор") answerS="FakeAdmin4";
+		if (answerS=="hotrin") answerS="FakeAdmin5";		
+		if (answerS=="hotring") answerS="FakeAdmin6";
+		if (answerS=="MeatGrinder") answerS="FakeAdmin7";	
+		if (answerS=="Administrator") answerS="FakeAdmin8";	
+		if (answerS=="Админ") answerS="FakeAdmin9";	
+		if (answerS=="Администратор") answerS="Fake10Admin";
+		if (answerS=="hotrin") answerS="Fake11Admin";		
+		if (answerS=="Fortune2Luck") answerS="Fake12Admin";	
+		if (answerS=="fortune2luck") answerS="Fake13Admin";
+		if (answerS=="Fortune2luck") answerS="Fake14Admin";			
+		if (answerS=="fortune2Luck") answerS="Fake15Admin";	
+		if (answerS=="hotring") answerS="Fake16Admin";
+	}
+	
+	if (player.Param[PLAYER_FACTION]==0)
+	{
+		uint money = player.CountItem( PID_BOTTLE_CAPS );
+		if (money>=1)
+		{
+			Item @ item = player.GetItem( PID_BOTTLE_CAPS, -1 );
+			if( !valid( item ) )return;
+			_SubItem( item, 1 );
+	
+			file fractions;
+
+			if( fractions.open( "fractions.ini", "a" ) <= 0 )
+			{
+				
+				file numberfraction1;
+				if( numberfraction1.open( "fractionnumber.ini", "r" ) == 0 )
+				{
+					numberfraction1.setPos( 0 );
+					while( not numberfraction1.isEndOfFile() )
+					{
+						NumberFraction = numberfraction1.readWord();
+						StrToInt(NumberFraction,NumberFractionInt);
+					}
+				}
+				numberfraction1.close();
+				
+	
+				NumberFractionInt+=1;
+				fractions.writeString( " "+ player.Name+ "\r\n");
+				fractions.writeString( ""+NumberFractionInt+" "+answerS + "\r\n" );
+
+					
+				file numberfraction2;
+				if( numberfraction2.open( "fractionnumber.ini", "w" ) <= 0 )
+				{
+					numberfraction2.writeString( ""+NumberFractionInt );
+				}
+				numberfraction2.close();
+				
+				
+				player.ParamBase[PLAYER_FACTION]=NumberFractionInt;
+				player.ParamBase[PLAYER_FACTION_ACCESS]=8;
+				
+				SaveFactionData(NumberFractionInt,1,0,0,0,0,0,0,0,0,0);	
+				AddSaveFactionDataExt(player, 8 );
+				SaveFactionName(NumberFractionInt, answerS);
+				CopyFactionFileToClient( player);
+				
+				converterUTF8toUINT(player,answerS);
+				
+				//player.SayMsg( SAY_NORM, TEXTMSG_GAME, 20178, "$idfraction" + NumberFractionInt);
+				player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20178, "$idfraction" + NumberFractionInt  );
+															
+													
+			}
+			fractions.close();
+
+		}
+		else player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 21430);
+		//player.Say( SAY_NETMSG, "Кажется у вас только что вытащили деньги из карманов" );
+	  
+	  
+	}
+	else
+		{
+			//player.Say( SAY_NETMSG, "Вы уже во фракции и её ID:"+player.Param[PLAYER_LEADER_PREFIX_ID] );
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20179, "$idfraction" + player.Param[PLAYER_FACTION]  );
+		}
+} 
+
+
+
+//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END
+//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END
+//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END
+//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END
+//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END
+//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END
+//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END//СОЗДАНИЕ=КОНЕЦ=END
+
+
+
+
+
+
+
+//ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS//ДОСТУП ACCESS 
+ //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS 
+ //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS 
+//ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS//ДОСТУП ACCESS 
+ //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS 
+ //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS 
+//ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS//ДОСТУП ACCESS 
+ //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS 
+ //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS //ДОСТУП ACCESS 
+
+ 
+ //EditAccessFaction
+	
+void r_EditAccessFactionName(Critter& player, Critter@) // Прописать всех кто находится на карте
+{
+	//if(player.Param[PLAYER_FACTION_ACCESS]!=1 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=3 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=6 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=7 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=8)
+	if(TakeAccessFaction(player)!=8)
+	{
+		//player.Say( SAY_NETMSG, "Только лидер и его приемник может изменять состав фракции" );
+		//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20137 );
+		//player.Say( SAY_NETMSG, "Нужен доступ лидера");
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME,21433);
+		return;
+	}
+	player.ShowScreen( SCREEN_SAY, 0, "answer_EditAccessFactionName" );
+    //player.SayMsg( SAY_SAY_TITLE, TEXTMSG_GAME, "Введите Ник игрока" );
+	player.SayMsg( SAY_SAY_TITLE, TEXTMSG_GAME, 21160);
+
+}
+
+
+
+void answer_EditAccessFactionName( Critter& player, uint answerI, string& answerS )
+{	   
+	Critter@ cr = GetPlayer( answerS );	
+		
+	if (valid(cr) && cr.IsPlayer())
+	{
+		if (cr.Param[PLAYER_CALCULATOR]!=0) 
+		{
+			//player.Say( SAY_NETMSG, "Нет такого персонажа." );
+			player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+		{
+		
+			if (cr.Param[PLAYER_FACTION_ACCESS]!=8 )
+			{
+			
+			
+					player.StatBase[ ST_VAR0 ] = cr.Id;
+					player.ShowScreen( SCREEN_SAY, 0, "answer_EditAccessEnterAccess" );
+					//player.Say( SAY_SAY_TITLE, "Введите уровень доступа" );
+					player.SayMsg( SAY_SAY_TITLE, TEXTMSG_GAME, 21432); //
+			
+			}
+			else if (cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+			{
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+			}
+			else if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION] && cr.Id==player.Id)
+			{
+					//r_ExitFromFaction(cr, null);
+					
+					//У вас макс ПРАВА
+					
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+			}
+		
+		
+		
+		
+			//player.Say( SAY_NETMSG, "Он уже в составе фракции" );
+			//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20139 );
+		}
+		if (cr.Param[PLAYER_FACTION]!=0 && cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+		{
+			//player.Say( SAY_NETMSG, "Он уже в составе другой фракции" );
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20140 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==0)
+		{
+
+		return;
+
+		}	
+	}
+	else if( !valid( cr ) )
+    {
+        //player.Say( SAY_NETMSG, "Нет такого персонажа." );
+		player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+        return;
+    }  
+}
+
+
+		
+		
+	
+void r_EditAccessFactionID(Critter& player, Critter@) // Прописать всех кто находится на карте
+{
+	//if(player.Param[PLAYER_FACTION_ACCESS]!=1 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=3 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=6 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=7 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=8)
+	if(TakeAccessFaction(player)!=8)
+	{
+		//player.Say( SAY_NETMSG, "Только лидер и его приемник может изменять состав фракции" );
+		//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20137 );
+		//player.Say( SAY_NETMSG, "нужен доступ лидера");
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME,21433);
+		return; //HOTRRR
+	}
+	player.ShowScreen( SCREEN_SAY, 0, "answer_EditAccessFactionID" );
+    //player.Say( SAY_SAY_TITLE, "Введите ID игрока" );
+	player.SayMsg( SAY_SAY_TITLE,TEXTMSG_GAME, 21161 );
+	
+
+}
+
+
+
+void answer_EditAccessFactionID( Critter& player, uint answerI, string& answerS )
+{	   
+	int IDgamer=0;
+	StrToInt(answerS,IDgamer);
+	Critter@ cr = GetCritter(IDgamer);
+		
+	if (valid(cr) && cr.IsPlayer())
+	{
+		if (cr.Param[PLAYER_CALCULATOR]!=0) 
+		{
+			//player.Say( SAY_NETMSG, "Нет такого персонажа." );
+			player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+		{
+		
+			if (cr.Param[PLAYER_FACTION_ACCESS]!=8 )
+			{
+			
+			
+					player.StatBase[ ST_VAR0 ] = cr.Id;
+					player.ShowScreen( SCREEN_SAY, 0, "answer_EditAccessEnterAccess" );
+					//player.Say( SAY_SAY_TITLE, "Введите уровень доступа" );
+					player.SayMsg( SAY_SAY_TITLE, TEXTMSG_GAME, 21432); //
+			
+			}
+			else if (cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+			{
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+			}
+			else if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION] && cr.Id==player.Id)
+			{
+					//r_ExitFromFaction(cr, null);
+					
+					//У вас макс ПРАВА
+					
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+			}
+		
+		
+		
+		
+			//player.Say( SAY_NETMSG, "Он уже в составе фракции" );
+			//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20139 );
+		}
+		if (cr.Param[PLAYER_FACTION]!=0 && cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+		{
+			//player.Say( SAY_NETMSG, "Он уже в составе другой фракции" );
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20140 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==0)
+		{
+
+		return;
+
+
+
+		
+		}	
+	}
+	else if( !valid( cr ) )
+    {
+        //player.Say( SAY_NETMSG, "Нет такого персонажа." );
+		player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+        return;
+    }
+
+	   
+	  
+}	
+
+
+void answer_EditAccessEnterAccess( Critter& player, uint answerI, string& answerS )
+{	   
+	Critter@ cr = GetCritter(player.Stat[ ST_VAR0 ]);
+	if (!valid(cr)) return;
+	int NomerDostupa=0;
+	player.StatBase[ ST_VAR0 ] = 0;
+	
+	StrToInt(answerS,NomerDostupa);
+	
+	if (NomerDostupa!=0 && NomerDostupa!=1 && NomerDostupa!=2 && NomerDostupa!=3 && NomerDostupa!=4
+	&& NomerDostupa!=5 && NomerDostupa!=6 && NomerDostupa!=7)
+	{
+	
+	//player.Say( SAY_NETMSG, "Введите от 0 до 7");
+	player.SayMsg( SAY_NETMSG, TEXTMSG_GAME,21434);
+	return;
+	}
+	
+	
+
+	if (cr.IsPlayer())
+	{
+		
+		EditAccessFaction(cr,NomerDostupa);
+		cr.ParamBase[PLAYER_FACTION_ACCESS]=NomerDostupa;
+		
+	}
+	else if( !valid( cr ) )
+    {
+        //player.Say( SAY_NETMSG, "Нет такого персонажа." );
+		player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+        return;
+    }
+
+	   
+	  
+}
+
+
+void r_EditAccessFactionVibor(Critter& player, Critter@)
+{
+	if(TakeAccessFaction(player)!=8)
+	{
+		//player.Say( SAY_NETMSG, "Только лидер и его приемник может изменять состав фракции" );
+		//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20137 );
+		//player.Say( SAY_NETMSG, "нужен доступ лидера");
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME,21433);
+		return;
+	}
+
+
+
+	Map@ map = player.GetMap();
+	if (!valid(map)) return;
+	
+    Critter@[] players;
+	Critter@[] playersAll;
+	Critter@[] playersIsSee;
+	map.GetCritters( 0, FIND_ALL | FIND_ONLY_PLAYERS, playersAll );
+	
+	for (uint ih = 0; ih < playersAll.length(); ih++)
+		{
+			if (player.IsSee(playersAll[ih]))
+				{
+					playersIsSee.insertLast(playersAll[ih]);
+				}
+		}
+	
+	for (uint ihw = 0; ihw < playersIsSee.length(); ihw++)
+		{
+			if (playersIsSee[ihw].Param[PLAYER_FACTION]!=0 && playersIsSee[ihw].Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION] && player.Id!=playersIsSee[ihw].Id)players.insertLast(playersIsSee[ihw]);
+		}
+
+		
+    for (uint pi = 0; pi < players.length(); pi++)
+		{
+			if (!valid(players[pi])) continue;
+			
+			player.StatBase[ ST_VAR0 ] = players[pi].Id;
+			player.ShowScreen( SCREEN_DIALOGBOX, players.length(), "answer_GiveAccessByVibor" );
+			//player.Say( SAY_DIALOGBOX_TEXT, "Who ?" );
+			player.SayMsg( SAY_DIALOGBOX_TEXT, TEXTMSG_GAME, 20138 );	//NORM			
+
+
+			for (uint i = 0; i < players.length(); i++)
+				{			
+					player.Say( SAY_DIALOGBOX_BUTTON(i), ""+players[pi].Name);				
+				}
+		}
+}
+
+
+
+void answer_GiveAccessByVibor( Critter& player, uint answerI, string& answerS )
+{	  
+
+	if(player.Param[PLAYER_FACTION]<=0)
+	{
+		Log("Invalid data received!");
+		return;
+	}
+	
+	
+	Map@ map = player.GetMap();
+	if (!valid(map)) return;
+    Critter@[] players;
+	Critter@[] playersAll;
+	Critter@[] playersIsSee;
+	map.GetCritters( 0, FIND_ALL | FIND_ONLY_PLAYERS, playersAll );
+	
+	for (uint ih = 0; ih < playersAll.length(); ih++)
+		{
+			if (player.IsSee(playersAll[ih]))
+				{
+					playersIsSee.insertLast(playersAll[ih]);
+				}
+		}
+	
+	for (uint ihw = 0; ihw < playersIsSee.length(); ihw++)
+		{
+			if (playersIsSee[ihw].Param[PLAYER_FACTION]!=0 && playersIsSee[ihw].Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION] && player.Id!=playersIsSee[ihw].Id)players.insertLast(playersIsSee[ihw]);
+		}
+	
+	for (uint i = 0; i < players.length(); i++)
+		{			
+			if (!valid(players[i])) continue;
+
+					if (answerI==i)
+						{	
+							Critter@ cr = GetCritter( players[i].Id );	
+							if(@cr==null)
+								{
+									player.SayMsg(SAY_NETMSG, TEXTMSG_GAME, 1300, "$playername"+answerS);
+									return;
+								}
+							/*if(cr.Param[PLAYER_FACTION]>0)
+								{
+									player.SayMsg(SAY_NETMSG, TEXTMSG_GAME, 1302, "$playername"+answerS);
+									return;
+								}*/	
+						
+						
+							if (cr.Param[PLAYER_CALCULATOR]>0)
+								{
+
+									player.SayMsg(SAY_NETMSG, TEXTMSG_GAME, 1300, "$playername"+answerS);
+									return;
+								}
+						
+							if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+								{
+
+									if (cr.Param[PLAYER_FACTION_ACCESS]!=8 )
+									{
+									
+									
+											player.StatBase[ ST_VAR0 ] = cr.Id;
+											player.ShowScreen( SCREEN_SAY, 0, "answer_EditAccessEnterAccess" );
+											//player.Say( SAY_SAY_TITLE, "Введите уровень доступа" );
+											player.SayMsg( SAY_SAY_TITLE, TEXTMSG_GAME, 21432); //
+									
+									}
+									else if (cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+									{
+											//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+											player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+									}
+									else if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION] && cr.Id==player.Id)
+									{
+											//r_ExitFromFaction(cr, null);
+											
+											//У вас макс ПРАВА
+											
+											//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+											//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+									}							
+														
+	
+									//player.Say( SAY_NETMSG, "Он уже в составе фракции" );
+									//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20139 );
+									//return;
+								}
+
+
+							}
+		}
+}
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END//ДОСТУП КОНЕЦ ACCESS END
+
+
+
+
+
+
+
+
+
+//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА
+//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА
+//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА
+//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА
+//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА
+//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА
+//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА
+//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА//ПРОПИСКА
+
+void r_AddFractionName(Critter& player, Critter@) // Прописать всех кто находится на карте
+{
+	//if(player.Param[PLAYER_FACTION_ACCESS]!=1 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=3 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=6 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=7 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=8)
+	if (TakeAccessFaction(player)!=1
+	&& TakeAccessFaction(player)!=3
+	&& TakeAccessFaction(player)!=6
+	&& TakeAccessFaction(player)!=7
+	&& TakeAccessFaction(player)!=8)
+	{
+		//player.Say( SAY_NETMSG, "Только лидер и его приемник может изменять состав фракции" );
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20137 );
+		//player.Say( SAY_NETMSG, "Ваш уровень доступа:"+TakeAccessFaction(player));
+		return;
+	}
+	player.ShowScreen( SCREEN_SAY, 0, "answer_AddFactionName" );
+    //player.Say( SAY_SAY_TITLE, "Введите Ник игрока" );
+	player.SayMsg( SAY_SAY_TITLE, TEXTMSG_GAME, 21160);
+}
+
+
+void answer_AddFactionName( Critter& player, uint answerI, string& answerS )
+{	   
+	Critter@ cr = GetPlayer( answerS );	
+	if (valid(cr) && cr.IsPlayer())
+	{
+		if (cr.Param[PLAYER_CALCULATOR]!=0) 
+		{
+			//player.Say( SAY_NETMSG, "Нет такого персонажа." );
+			player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+			return;
+		}
+			
+		if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+		{
+			//player.Say( SAY_NETMSG, "Он уже в составе фракции" );
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20139 );
+		}
+		if (cr.Param[PLAYER_FACTION]!=0 && cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+		{
+			//player.Say( SAY_NETMSG, "Он уже в составе другой фракции" );
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20140 );
+		}
+		
+		if (cr.Param[PLAYER_FACTION]==0)
+		{
+			cr.StatBase[ ST_VAR0 ] = player.Param[PLAYER_FACTION];
+			cr.StatBase[ ST_VAR1 ] = player.Id;
+			cr.ShowScreen( SCREEN_DIALOGBOX, 2, "answer_addYouInFaction" );
+			cr.SayMsg( SAY_DIALOGBOX_TEXT, TEXTMSG_GAME, 20141 );
+			cr.SayMsg( SAY_DIALOGBOX_BUTTON(0), TEXTMSG_GAME, 20142 );
+			cr.SayMsg( SAY_DIALOGBOX_BUTTON(1), TEXTMSG_GAME, 20143 );
+			//cr.Say( SAY_DIALOGBOX_TEXT, "Вас добавляют во фракцию, согласны?" );											
+		}
+	}
+	else if( !valid( cr ) )
+    {
+       // player.Say( SAY_NETMSG, "Нет такого персонажа." );
+	   player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+        return;
+    }
+
+	   
+	  
+}
+
+
+void r_AddFractionID(Critter& player, Critter@) // Прописать всех кто находится на карте
+{
+	//if(player.Param[PLAYER_FACTION_ACCESS]!=1 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=3 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=6 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=7 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=8)
+	if (TakeAccessFaction(player)!=1
+	&& TakeAccessFaction(player)!=3
+	&& TakeAccessFaction(player)!=6
+	&& TakeAccessFaction(player)!=7
+	&& TakeAccessFaction(player)!=8)
+	{
+		//player.Say( SAY_NETMSG, "Только лидер и его приемник может изменять состав фракции" );
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20137 );
+		//player.Say( SAY_NETMSG, "Ваш уровень доступа:"+TakeAccessFaction(player));
+		return;
+	}
+	player.ShowScreen( SCREEN_SAY, 0, "answer_AddFactionID" );
+   // player.Say( SAY_SAY_TITLE, "Введите ID игрока" );
+	player.SayMsg( SAY_SAY_TITLE,TEXTMSG_GAME, 21161 );
+	
+
+}
+
+
+void answer_AddFactionID( Critter& player, uint answerI, string& answerS )
+{	   
+	int IDgamer=0;
+	StrToInt(answerS,IDgamer);
+	Critter@ cr = GetCritter(IDgamer);
+		
+	if (valid(cr) && cr.IsPlayer())
+	{
+		if (cr.Param[PLAYER_CALCULATOR]!=0) 
+		{
+			//player.Say( SAY_NETMSG, "Нет такого персонажа." );
+			player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+		{
+			//player.Say( SAY_NETMSG, "Он уже в составе фракции" );
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20139 );
+		}
+		if (cr.Param[PLAYER_FACTION]!=0 && cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+		{
+			//player.Say( SAY_NETMSG, "Он уже в составе другой фракции" );
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20140 );
+		}
+
+		if (cr.Param[PLAYER_FACTION]==0)
+		{
+			cr.StatBase[ ST_VAR0 ] = player.Param[PLAYER_FACTION];
+			cr.StatBase[ ST_VAR1 ] = player.Id;
+			cr.ShowScreen( SCREEN_DIALOGBOX, 2, "answer_addYouInFaction" );
+			cr.SayMsg( SAY_DIALOGBOX_TEXT, TEXTMSG_GAME, 20141 );
+			cr.SayMsg( SAY_DIALOGBOX_BUTTON(0), TEXTMSG_GAME, 20142 );
+			cr.SayMsg( SAY_DIALOGBOX_BUTTON(1), TEXTMSG_GAME, 20143 );
+			//cr.Say( SAY_DIALOGBOX_TEXT, "Вас добавляют во фракцию, согласны?" );											
+		}	
+	}
+	else if( !valid( cr ) )
+    {
+        //player.Say( SAY_NETMSG, "Нет такого персонажа." );
+		player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+        return;
+    }
+
+	   
+	  
+}
+
+					//1.Право-добавлять
+					//2.Право-Удалять
+					//3.Право-добавлять-удалять
+					//4.Деньги
+					//5.Право-удалять и деньги
+					//6.Право-добавлять и деньги
+					//7.Право-добавлять-удалять, деньги
+					//8.Хозяин
+void r_AddFactionVibor2(Critter& player, Critter@) // Прописать всех кто находится на карте
+{
+	//if(player.Param[PLAYER_FACTION_ACCESS]!=1 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=3 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=6 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=7 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=8)
+	if (TakeAccessFaction(player)!=1
+	&& TakeAccessFaction(player)!=3
+	&& TakeAccessFaction(player)!=6
+	&& TakeAccessFaction(player)!=7
+	&& TakeAccessFaction(player)!=8)
+	{
+		//player.Say( SAY_NETMSG, "Только лидер и его приемник может изменять состав фракции" );
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20137 );
+		//player.Say( SAY_NETMSG, "Ваш уровень доступа:"+TakeAccessFaction(player));
+		return;
+	}
+	
+	Map@ map = player.GetMap();
+    Critter@[] players;
+    map.GetCritters( 0, FIND_ALL | FIND_ONLY_PLAYERS, players );
+
+    for (uint pi = 0; pi < players.length(); pi++)
+	{
+		player.StatBase[ ST_VAR0 ] = players[pi].Id;
+		player.ShowScreen( SCREEN_DIALOGBOX, players.length(), "answer_addfactionvibor" );
+		//player.Say( SAY_DIALOGBOX_TEXT, "Кого добавить во фракцию ?" );	
+		player.SayMsg( SAY_DIALOGBOX_TEXT, TEXTMSG_GAME, 20138 );
+
+		for (uint i = 0; i < players.length(); i++)
+		{				
+			player.Say( SAY_DIALOGBOX_BUTTON(i), ""+players[pi].Name);				
+		}		
+	}
+}
+
+	
+void r_AddFactionVibor(Critter& player, Critter@)
+{
+	if (TakeAccessFaction(player)!=1
+	&& TakeAccessFaction(player)!=3
+	&& TakeAccessFaction(player)!=6
+	&& TakeAccessFaction(player)!=7
+	&& TakeAccessFaction(player)!=8)
+	{
+		//player.Say( SAY_NETMSG, "Только лидер и его приемник может изменять состав фракции" );
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20137 );
+		//player.Say( SAY_NETMSG, "Ваш уровень доступа:"+TakeAccessFaction(player));
+		return;
+	}
+
+
+
+	Map@ map = player.GetMap();
+	if (!valid(map)) return;
+	
+    Critter@[] players;
+	Critter@[] playersAll;
+	Critter@[] playersIsSee;
+	map.GetCritters( 0, FIND_ALL | FIND_ONLY_PLAYERS, playersAll );
+	
+	for (uint ih = 0; ih < playersAll.length(); ih++)
+		{
+			if (player.IsSee(playersAll[ih]))
+				{
+					playersIsSee.insertLast(playersAll[ih]);
+				}
+		}
+	
+	for (uint ihw = 0; ihw < playersIsSee.length(); ihw++)
+		{
+			if (playersIsSee[ihw].Param[PLAYER_FACTION]==0)players.insertLast(playersIsSee[ihw]);
+		}
+
+		
+    for (uint pi = 0; pi < players.length(); pi++)
+		{
+			if (!valid(players[pi])) continue;
+			
+			player.StatBase[ ST_VAR0 ] = players[pi].Id;
+			player.ShowScreen( SCREEN_DIALOGBOX, players.length(), "answer_InviteByVibor" );
+			//player.Say( SAY_DIALOGBOX_TEXT, "Who ?" );
+			player.SayMsg( SAY_DIALOGBOX_TEXT, TEXTMSG_GAME, 20138 );	//NORM			
+
+
+			for (uint i = 0; i < players.length(); i++)
+				{			
+					player.Say( SAY_DIALOGBOX_BUTTON(i), ""+players[pi].Name);				
+				}
+		}
+}
+
+
+void answer_InviteByVibor( Critter& player, uint answerI, string& answerS )
+{	  
+
+	if(player.Param[PLAYER_FACTION]<=0)
+	{
+		Log("Invalid data received!");
+		return;
+	}
+	
+	if (TakeAccessFaction(player)!=1
+	&& TakeAccessFaction(player)!=3
+	&& TakeAccessFaction(player)!=6
+	&& TakeAccessFaction(player)!=7
+	&& TakeAccessFaction(player)!=8)
+	{
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20137 );
+		//player.Say( SAY_NETMSG, "Ваш уровень доступа:"+TakeAccessFaction(player));
+		return;
+	}
+	
+	
+	Map@ map = player.GetMap();
+	if (!valid(map)) return;
+    Critter@[] players;
+	Critter@[] playersAll;
+	Critter@[] playersIsSee;
+
+	map.GetCritters( 0, FIND_ALL | FIND_ONLY_PLAYERS, playersAll );
+	
+	for (uint ih = 0; ih < playersAll.length(); ih++)
+		{
+		if (player.IsSee(playersAll[ih]))
+			{
+				playersIsSee.insertLast(playersAll[ih]);
+			}
+		}
+	
+	for (uint ihw = 0; ihw < playersIsSee.length(); ihw++)
+		{
+			if (playersIsSee[ihw].Param[PLAYER_FACTION]==0)players.insertLast(playersIsSee[ihw]);
+		}
+
+	
+	for (uint i = 0; i < players.length(); i++)
+		{			
+			if (!valid(players[i])) continue;
+
+					if (answerI==i)
+						{	
+							Critter@ cr = GetCritter( players[i].Id );	
+							if(@cr==null)
+								{
+									player.SayMsg(SAY_NETMSG, TEXTMSG_GAME, 1300, "$playername"+answerS);
+									return;
+								}
+							if(cr.Param[PLAYER_FACTION]>0)
+								{
+									player.SayMsg(SAY_NETMSG, TEXTMSG_GAME, 1302, "$playername"+answerS);
+									return;
+								}	
+						
+						
+							if (cr.Param[PLAYER_CALCULATOR]>0)
+								{
+
+									player.SayMsg(SAY_NETMSG, TEXTMSG_GAME, 1300, "$playername"+answerS);
+									return;
+								}
+						
+							if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+								{
+									//player.Say( SAY_NETMSG, "Он уже в составе фракции" );
+									player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20139 );
+									return;
+								}
+							if (cr.Param[PLAYER_FACTION]!=0 && cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+							{
+								//player.Say( SAY_NETMSG, "Он уже в составе другой фракции" );
+								player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20140 );
+							}
+
+							if (valid(cr) && cr.IsPlayer())
+								{
+				
+									cr.StatBase[ ST_VAR0 ] = player.Param[PLAYER_FACTION];
+									cr.StatBase[ ST_VAR1 ] = player.Id;
+									cr.ShowScreen( SCREEN_DIALOGBOX, 2, "answer_addYouInFaction" );
+									cr.SayMsg( SAY_DIALOGBOX_TEXT, TEXTMSG_GAME, 20141 );
+									cr.SayMsg( SAY_DIALOGBOX_BUTTON(0), TEXTMSG_GAME, 20142 );
+									cr.SayMsg( SAY_DIALOGBOX_BUTTON(1), TEXTMSG_GAME, 20143 );
+								
+				
+								}
+						
+						
+					if( !valid( cr ) )
+					{
+						//player.Say( SAY_NETMSG, "No player." );
+						player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20146 );	
+						return;
+					}
+							
+
+							}
+		}
+}
+
+
+void answer_addYouInFaction( Critter& cr, uint answerI, string& answerS )
+{	  
+	Critter@ player = GetCritter(cr.Stat[ ST_VAR1 ]);
+	if (answerI==0)
+	{
+		cr.ParamBase[PLAYER_FACTION]=cr.Stat[ ST_VAR0 ];
+		//player.Say( SAY_NETMSG, "Вы успешно добавили во фракцию персонажа с именем:"+cr.Name+ " и id:"+cr.Id);
+		if (valid(player))	player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20144, "$crName" + cr.Name + "$crId" + cr.Id );
+		cr.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20145 );
+		//cr.Say( SAY_NETMSG, "Вы добавлены во фракционную систему" );
+									
+		string NameFraction =cr.Name;		
+		for( uint yi = 0, yj = NameFraction.length()-1; yi < yj; yi++ ) 
+		{
+			if( NameFraction[ yi ] == " " )NameFraction[ yi ] = ".";
+		}			
+																
+		SaveFactionData(cr.Stat[ ST_VAR0 ],1,0,0,0,0,0,0,0,0,0);
+		AddSaveFactionDataExt(cr, 0 );		
+
+		converterUTF8toUINT(cr,DEconverterUTF8toUINT(player));
+	}
+	else if (answerI>=1)
+	{
+		if (valid(player)) player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20146 );// player.Say( SAY_NETMSG, "Игрок отказался от входа во фракцию!" );
+	}
+}	  
+
+
+
+
+
+					//1.Право-добавлять
+					//2.Право-Удалять
+					//3.Право-добавлять-удалять
+					//4.Деньги
+					//5.Право-удалять и деньги
+					//6.Право-добавлять и деньги
+					//7.Право-добавлять-удалять, деньги
+					//8.Хозяин
+
+
+
+void r_DelFactionName(Critter& player, Critter@) // Прописать всех кто находится на карте
+{
+	//if(player.Param[PLAYER_FACTION_ACCESS]!=1 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=3 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=6 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=7 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=8)
+	if(TakeAccessFaction(player)!=2
+	&& TakeAccessFaction(player)!=3
+	&& TakeAccessFaction(player)!=5
+	&& TakeAccessFaction(player)!=7
+	&& TakeAccessFaction(player)!=8)
+	{
+		//player.Say( SAY_NETMSG, "Только лидер и его приемник может изменять состав фракции" );
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20137 );
+		//player.Say( SAY_NETMSG, "Ваш уровень доступа:"+TakeAccessFaction(player));
+		return;
+	}
+	player.ShowScreen( SCREEN_SAY, 0, "answer_DelFactionName" );
+    //player.Say( SAY_SAY_TITLE, "Введите Ник игрока" );
+	player.SayMsg( SAY_SAY_TITLE, TEXTMSG_GAME, 21160);
+}
+
+
+void answer_DelFactionName( Critter& player, uint answerI, string& answerS )
+{	   
+	Critter@ cr = GetPlayer( answerS );	
+	if (valid(cr) && cr.IsPlayer())
+	{
+
+		if (cr.Param[PLAYER_CALCULATOR]!=0) 
+		{
+			//player.Say( SAY_NETMSG, "Нет такого персонажа." );
+			player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+		{
+		
+			if (cr.Param[PLAYER_FACTION_ACCESS]!=8 )
+			{
+				SaveFactionData(player.Param[PLAYER_FACTION],-1,0,0,0,0,0,0,0,0,0);	
+				DelSaveFactionDataExt(cr);
+					
+				cr.ParamBase[PLAYER_FACTION]=0;
+				cr.ParamBase[PLAYER_FACTION_ACCESS]=0;						
+				player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20149, "$crName" + cr.Name + "$crId" + cr.Id );
+				cr.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20150 );									
+	
+				for( uint ie = 821, je = 850; ie < je; ie++ )
+				{
+					cr.ParamBase[ie]=0;
+				}
+			}
+			else if (cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+			{
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+			}
+			else if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION] && cr.Id==player.Id)
+			{
+					r_ExitFromFaction(cr, null);
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+			}
+		
+		
+		
+		
+			//player.Say( SAY_NETMSG, "Он уже в составе фракции" );
+			//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20139 );
+		}
+		if (cr.Param[PLAYER_FACTION]!=0 && cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+		{
+			//player.Say( SAY_NETMSG, "Он уже в составе другой фракции" );
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20140 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==0)
+		{
+
+		return;
+
+
+
+		
+		}	
+	
+	
+	}
+	else if( !valid( cr ) )
+    {
+       //player.Say( SAY_NETMSG, "Нет такого персонажа." );
+	   player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+        return;
+    }
+
+	   
+	  
+}
+					
+					
+					
+					
+					
+					
+	
+void r_DelFactionID(Critter& player, Critter@) // Прописать всех кто находится на карте
+{
+	//if(player.Param[PLAYER_FACTION_ACCESS]!=1 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=3 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=6 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=7 
+	//&& player.Param[PLAYER_FACTION_ACCESS]!=8)
+	if(TakeAccessFaction(player)!=2
+	&& TakeAccessFaction(player)!=3
+	&& TakeAccessFaction(player)!=5
+	&& TakeAccessFaction(player)!=7
+	&& TakeAccessFaction(player)!=8)
+	{
+		//player.Say( SAY_NETMSG, "Только лидер и его приемник может изменять состав фракции" );
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20137 );
+		//player.Say( SAY_NETMSG, "Ваш уровень доступа:"+TakeAccessFaction(player));
+		return;
+	}
+	player.ShowScreen( SCREEN_SAY, 0, "answer_DelFactionID" );
+   // player.Say( SAY_SAY_TITLE, "Введите ID игрока" );
+	player.SayMsg( SAY_SAY_TITLE,TEXTMSG_GAME, 21161 );
+	
+
+}
+
+
+
+void answer_DelFactionID( Critter& player, uint answerI, string& answerS )
+{	   
+	int IDgamer=0;
+	StrToInt(answerS,IDgamer);
+	Critter@ cr = GetCritter(IDgamer);
+		
+	if (valid(cr) && cr.IsPlayer())
+	{
+		if (cr.Param[PLAYER_CALCULATOR]!=0) 
+		{
+			//player.Say( SAY_NETMSG, "Нет такого персонажа." );
+			player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+		{
+		
+			if (cr.Param[PLAYER_FACTION_ACCESS]!=8 )
+			{
+				SaveFactionData(player.Param[PLAYER_FACTION],-1,0,0,0,0,0,0,0,0,0);	
+				DelSaveFactionDataExt(cr);
+					
+				cr.ParamBase[PLAYER_FACTION]=0;
+				cr.ParamBase[PLAYER_FACTION_ACCESS]=0;						
+				player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20149, "$crName" + cr.Name + "$crId" + cr.Id );
+				cr.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20150 );									
+	
+				for( uint ie = 821, je = 850; ie < je; ie++ )
+				{
+					cr.ParamBase[ie]=0;
+				}
+			}
+			else if (cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+			{
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+			}
+			else if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION] && cr.Id==player.Id)
+			{
+					r_ExitFromFaction(cr, null);
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+			}
+		
+		
+		
+		
+			//player.Say( SAY_NETMSG, "Он уже в составе фракции" );
+			//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20139 );
+		}
+		if (cr.Param[PLAYER_FACTION]!=0 && cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+		{
+			//player.Say( SAY_NETMSG, "Он уже в составе другой фракции" );
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20140 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==0)
+		{
+
+		return;
+
+
+
+		
+		}	
+	}
+	else if( !valid( cr ) )
+    {
+        //player.Say( SAY_NETMSG, "Нет такого персонажа." );
+		player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+        return;
+    }
+
+	   
+	  
+}				
+									
+void r_DelFactionVibor(Critter& player, Critter@) // Прописать всех кто находится на карте
+{
+	//if(player.Param[PLAYER_FACTION_ACCESS]!=2 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=3 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=5 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=7 
+	//|| player.Param[PLAYER_FACTION_ACCESS]!=8)
+	
+	if(TakeAccessFaction(player)!=2
+	&& TakeAccessFaction(player)!=3
+	&& TakeAccessFaction(player)!=5
+	&& TakeAccessFaction(player)!=7
+	&& TakeAccessFaction(player)!=8)
+	{
+		//player.Say( SAY_NETMSG, "Только лидер и его приемник может изменять состав фракции" );
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20147 );
+		return;
+	}
+	Map@ map = player.GetMap();
+	if (!valid(map)) return;
+    Critter@[] players;
+   // map.GetCritters( 0, FIND_ALL | FIND_ONLY_PLAYERS, players );
+	//Critter@[] players;
+	Critter@[] playersAll;
+	Critter@[] playersIsSee;
+	map.GetCritters( 0, FIND_ALL | FIND_ONLY_PLAYERS, playersAll );
+	
+	for (uint ih = 0; ih < playersAll.length(); ih++)
+		{
+			if (player.IsSee(playersAll[ih]))
+				{
+					playersIsSee.insertLast(playersAll[ih]);
+				}
+		}
+	
+	for (uint ihw = 0; ihw < playersIsSee.length(); ihw++)
+		{
+			if (playersIsSee[ihw].Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION]  && player.Id!=playersIsSee[ihw].Id)players.insertLast(playersIsSee[ihw]);
+		}
+
+	
+	
+	
+	
+	
+	
+	
+	
+    for (uint pi = 0; pi < players.length(); pi++)
+	{
+		player.StatBase[ ST_VAR0 ] = players[pi].Id;
+		player.ShowScreen( SCREEN_DIALOGBOX, players.length(), "answer_delfactionvibor" );
+		//player.Say( SAY_DIALOGBOX_TEXT, "Кого удалить из фракции ?" );			
+		player.SayMsg( SAY_DIALOGBOX_TEXT, TEXTMSG_GAME, 20148 );
+
+	    for (uint i = 0; i < players.length(); i++)
+		{			
+			player.Say( SAY_DIALOGBOX_BUTTON(i), ""+players[pi].Name);				
+		}
+	}
+}
+
+
+void answer_delfactionvibor( Critter& player, uint answerI, string& answerS )
+{	   
+	Map@ map = player.GetMap();
+	Critter@[] players;
+   // map.GetCritters( 0, FIND_ALL | FIND_ONLY_PLAYERS, players );
+	Critter@[] playersAll;
+	Critter@[] playersIsSee;
+	map.GetCritters( 0, FIND_ALL | FIND_ONLY_PLAYERS, playersAll );
+	
+	for (uint ih = 0; ih < playersAll.length(); ih++)
+		{
+			if (player.IsSee(playersAll[ih]))
+				{
+					playersIsSee.insertLast(playersAll[ih]);
+				}
+		}
+	
+	for (uint ihw = 0; ihw < playersIsSee.length(); ihw++)
+		{
+			if (playersIsSee[ihw].Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION] && player.Id!=playersIsSee[ihw].Id )
+			players.insertLast(playersIsSee[ihw]);
+		}
+	
+	
+	
+	
+	
+	
+	Location@ loc=map.GetLocation();
+	
+	for (uint i = 0; i < players.length(); i++)
+	{			
+		if (answerI==i)
+		{
+			Critter@ cr = GetCritter( players[i].Id );	
+			if (valid(cr) && cr.IsPlayer())
+			{
+				if (cr.Param[PLAYER_FACTION_ACCESS]!=8 )
+				{
+					if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+					{
+						SaveFactionData(player.Param[PLAYER_FACTION],-1,0,0,0,0,0,0,0,0,0);	
+						DelSaveFactionDataExt(cr);
+					
+						cr.ParamBase[PLAYER_FACTION]=0;
+						cr.ParamBase[PLAYER_FACTION_ACCESS]=0;						
+						player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20149, "$crName" + cr.Name + "$crId" + cr.Id );
+						cr.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20150 );									
+	//converterUTF8toUINT(cr,DEconverterUTF8toUINT(player));
+	
+						for( uint ie = 821, je = 850; ie < je; ie++ )
+						{
+
+							cr.ParamBase[ie]=0;
+
+						}
+					}
+					else
+					{
+						//player.Say( SAY_NETMSG, "Он не в составе вашей фракции" );
+						player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20151 );	
+					}
+				}
+				else if (cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+				{
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+				}
+				else if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION] && cr.Id==player.Id)
+				{
+					r_ExitFromFaction(cr, null);
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+				}
+			}			
+			else if( !valid( cr ) )
+			{
+				//player.Say( SAY_NETMSG, "Нет такого персонажа." );
+				player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+				return;
+			}			
+		}
+	}  
+}
+
+/*
+void answer_delfactionvibor( Critter& player, uint answerI, string& answerS )
+{	   
+	Map@ map = player.GetMap();
+	Critter@[] players;
+    map.GetCritters( 0, FIND_ALL | FIND_ONLY_PLAYERS, players );
+	Location@ loc=map.GetLocation();
+	
+	for (uint i = 0; i < players.length(); i++)
+	{			
+		if (answerI==i)
+		{
+			Critter@ cr = GetCritter( players[i].Id );	
+			if (valid(cr) && cr.IsPlayer())
+			{
+				if (cr.Param[PLAYER_FACTION_ACCESS]!=8 )
+				{
+					if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+					{
+						SaveFactionData(player.Param[PLAYER_FACTION],-1,0,0,0,0,0,0,0,0,0);	
+						DelSaveFactionDataExt(cr);
+					
+						cr.ParamBase[PLAYER_FACTION]=0;
+						cr.ParamBase[PLAYER_FACTION_ACCESS]=0;						
+						player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20149, "$crName" + cr.Name + "$crId" + cr.Id );
+						cr.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20150 );									
+	//converterUTF8toUINT(cr,DEconverterUTF8toUINT(player));
+	
+						for( uint ie = 821, je = 850; ie < je; ie++ )
+						{
+
+							cr.ParamBase[ie]=0;
+
+						}
+					}
+					else
+					{
+						//player.Say( SAY_NETMSG, "Он не в составе вашей фракции" );
+						player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20151 );	
+					}
+				}
+				else if (cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+				{
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+				}
+				else if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+				{
+					r_ExitFromFaction(cr, null);
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+				}
+			}			
+			else if( !valid( cr ) )
+			{
+				player.Say( SAY_NETMSG, "Нет такого персонажа." );
+				return;
+			}			
+		}
+	}  
+}*/
+
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ
+void r_ExitFromFaction(Critter& player, Critter@)
+{
+	if (player.Param[PLAYER_FACTION]==0)
+	{
+		//player.Say( SAY_NETMSG, "Вы не в одной фракции не состоите!" );
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20153 );
+		return;
+	}
+
+  	player.ShowScreen( SCREEN_DIALOGBOX, 1, "answer_ExitFromFaction" );
+	//player.Say( SAY_DIALOGBOX_TEXT, "Вы хотите уйти из фракции?" );	
+	player.SayMsg( SAY_DIALOGBOX_TEXT, TEXTMSG_GAME, 20154 );
+	player.SayMsg( SAY_DIALOGBOX_BUTTON(0), TEXTMSG_GAME, 20142 );
+	player.SayMsg( SAY_DIALOGBOX_BUTTON(1), TEXTMSG_GAME, 20143 );    
+}
+
+
+void answer_ExitFromFaction( Critter& player, uint answerI, string& answerS )
+{	   		
+	if (answerI==0)
+	{
+		if (player.Param[PLAYER_FACTION_ACCESS]<8)
+		{
+			uint money = player.CountItem( PID_BOTTLE_CAPS );
+			if (money>=2000000)
+			{
+				Item @ item = player.GetItem( PID_BOTTLE_CAPS, -1 );
+				if( !valid( item ) )return;
+				_SubItem( item, 2000000 );
+
+				SaveFactionData(player.Param[PLAYER_FACTION],-1,0,0,0,0,0,0,0,0,0);
+				DelSaveFactionDataExt(player);			
+				player.ParamBase[PLAYER_FACTION]=0;
+				player.ParamBase[PLAYER_FACTION_ACCESS]=0;
+
+	
+				for( uint ie = 821, je = 850; ie < je; ie++ )
+				{
+					player.ParamBase[ie]=0;
+				}
+
+
+
+
+
+
+
+			
+				//player.Say( SAY_NETMSG, "Вы спокойно ушли из фракции" );
+				player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20155 );
+			}
+			else player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20156 );//player.Say( SAY_NETMSG, "Чтобы выйти из фракции, нужно заплатить 2.000.000$" );		
+		}
+		else
+		{
+			player.ShowScreen( SCREEN_DIALOGBOX, 1, "answer_ExitLider" );
+			//player.Say( SAY_DIALOGBOX_TEXT, "Если вы выйдите и не оставите приемника, то добавиться в организацию больше нельзя никому. Вы согласны?" );
+			player.SayMsg( SAY_DIALOGBOX_TEXT, TEXTMSG_GAME, 20157 );
+			player.SayMsg( SAY_DIALOGBOX_BUTTON(0), TEXTMSG_GAME, 20142 );
+			player.SayMsg( SAY_DIALOGBOX_BUTTON(1), TEXTMSG_GAME, 20143 );					
+		}
+	}
+	else	player.Say( SAY_NETMSG, "AnswerI="+answerI );	
+	
+}
+
+
+void answer_ExitLider( Critter& player, uint answerI, string& answerS )
+{	   
+	uint money = player.CountItem( PID_BOTTLE_CAPS );
+	if (money>=2000000)
+	{
+		int16 NomerFrakcii=player.Param[PLAYER_FACTION];
+		Item @ item = player.GetItem( PID_BOTTLE_CAPS, -1 );
+		if( !valid( item ) )return;
+		_SubItem( item, 2000000 );	
+		//UpdateAddRowRank(player,NomerFrakcii,400000);	
+				
+		if (answerI==0)
+		{
+			SaveFactionData(player.Param[PLAYER_FACTION],-1,0,0,0,0,0,0,0,0,0);
+			DelSaveFactionDataExt(player);	
+			player.ParamBase[PLAYER_FACTION]=0;
+			player.ParamBase[PLAYER_FACTION_ACCESS]=0;
+			
+			
+			for( uint ie = 821, je = 850; ie < je; ie++ )
+				{
+					player.ParamBase[ie]=0;
+				}			
+			
+			
+			
+			
+
+
+			//player.Say( SAY_NETMSG, "Вы спокойно ушли из фракции, все заботы ушли" );	
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20155 );
+		}
+		else player.Say( SAY_NETMSG, "AnswerI="+answerI );	
+	}
+	else player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20156 );//player.Say( SAY_NETMSG, "Чтобы выйти из фракции, нужно заплатить 2.000.000$" );
+}
+
+
+
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ====КОНЕЦ====КОНЕЦ=====КОНЕЦ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ====КОНЕЦ====КОНЕЦ=====КОНЕЦ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ====КОНЕЦ====КОНЕЦ=====КОНЕЦ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ====КОНЕЦ====КОНЕЦ=====КОНЕЦ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ====КОНЕЦ====КОНЕЦ=====КОНЕЦ
+//////////////////////УДАЛЕНИЕ САМОГО СЕБЯ====КОНЕЦ====КОНЕЦ=====КОНЕЦ
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void r_SwawLeaderStatusFaction(Critter& player, Critter@)
+{
+	if (player.Param[PLAYER_FACTION]==0)
+	{
+		//player.Say( SAY_NETMSG, "Вы не в одной фракции не состоите!" );
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20153 );
+		return;
+	}
+	if (player.Param[PLAYER_FACTION_ACCESS]!=8)
+	{
+		player.SayMsg( SAY_NETMSG, TEXTMSG_GAME,21433);
+		return;
+	}
+  	player.ShowScreen( SCREEN_DIALOGBOX, 1, "answer_SwawLeaderStatus" );
+	//player.Say( SAY_DIALOGBOX_TEXT, "Вы хотите уйти из фракции?" );	
+	player.SayMsg( SAY_DIALOGBOX_TEXT, TEXTMSG_GAME, 21435 );
+	player.SayMsg( SAY_DIALOGBOX_BUTTON(0), TEXTMSG_GAME, 20142 );
+	player.SayMsg( SAY_DIALOGBOX_BUTTON(1), TEXTMSG_GAME, 20143 );    
+}
+
+
+void answer_SwawLeaderStatus( Critter& player, uint answerI, string& answerS )
+{	   		
+	if (answerI==0)
+	{
+		player.ShowScreen( SCREEN_SAY, 0, "answer_SwapLeaderTakeIDplayer" );
+		//player.Say( SAY_SAY_TITLE, "Введите ID игрока" );
+		player.SayMsg( SAY_SAY_TITLE,TEXTMSG_GAME, 21161 );
+	
+	
+	}
+	else	player.Say( SAY_NETMSG, "AnswerI="+answerI );	
+	
+}
+
+
+
+
+void answer_SwapLeaderTakeIDplayer( Critter& player, uint answerI, string& answerS )
+{	   
+	int IDgamer=0;
+	StrToInt(answerS,IDgamer);
+	Critter@ cr = GetCritter(IDgamer);
+		
+	if (valid(cr) && cr.IsPlayer())
+	{
+		if (cr.Param[PLAYER_CALCULATOR]!=0) 
+		{
+			//player.Say( SAY_NETMSG, "Нет такого персонажа." );
+			player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION])
+		{
+		
+			if (cr.Param[PLAYER_FACTION_ACCESS]!=8 )
+			{
+			
+//HOTRRR		
+				//converterUTF8toUINT(cr,DEconverterUTF8toUINT(player));
+				int ParameterTake=cr.Param[PLAYER_FACTION_ACCESS];
+				cr.ParamBase[PLAYER_FACTION_ACCESS]=8;
+				player.ParamBase[PLAYER_FACTION_ACCESS]=ParameterTake;
+			
+				EditAccessFaction(cr,8);
+				EditAccessFaction(player,ParameterTake);
+			}
+			else if (cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+			{
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+			}
+			else if (cr.Param[PLAYER_FACTION]==player.Param[PLAYER_FACTION] && cr.Id==player.Id)
+			{
+					//r_ExitFromFaction(cr, null);
+					
+					//У вас макс ПРАВА
+					
+					//player.Say( SAY_NETMSG, "Лидера невозможно сместить. Обратитесь к администратору" );
+					//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20152 );
+			}
+		
+		
+		
+		
+			//player.Say( SAY_NETMSG, "Он уже в составе фракции" );
+			//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20139 );
+		}
+		if (cr.Param[PLAYER_FACTION]!=0 && cr.Param[PLAYER_FACTION]!=player.Param[PLAYER_FACTION])
+		{
+			//player.Say( SAY_NETMSG, "Он уже в составе другой фракции" );
+			player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20140 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]==0)
+		{
+
+		return;
+
+
+
+		
+		}	
+	}
+	else if( !valid( cr ) )
+    {
+        //player.Say( SAY_NETMSG, "Нет такого персонажа." );
+		player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+        return;
+    }
+
+	   
+	  
+}	
+
+
+
+
+
+//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END
+//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END
+//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END
+//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END
+//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END
+//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END//УДАЛЕНИЕ=КОНЕЦ=END
+
+
+
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+//MSG CHAT CLAN CHAT clan Chat  Clan Chat//MSG CHAT CLAN CHAT clan ChatClan Chat
+
+
+
+/*
+
+void unsafe_SendChatMessage(Critter& cr, int, int, int, string@ msg, int[]@)
+{
+	if(@msg==null || msg.length()==0 || cr.Stat[ST_FACTION]==0) return;
+	//======Fortune2Luck
+	string@ MessageInFile =cr.Name+" ±µ "+msg;
+	SaveChatFaction(cr.Stat[ST_FACTION],MessageInFile);
+	//==================
+	msg="|"+0xFFFFFF00+" <"+ cr.Name+"> |"+ 0xFFFFFFFF+" "+msg;
+	Faction@ f=GetFaction(cr.Stat[ST_FACTION]);
+	if(valid(f))
+	{
+		for(uint n=0; n<f.MembersCount; n++)
+		{
+			Critter@ member=GetCritter(f.Member[n]);
+			if(valid(member) && member.Id!=cr.Id  && member.Stat[ST_FACTION]==cr.Stat[ST_FACTION]) 
+			{
+				member.RunClientScript("factions@ChatMsgReceived", 0, 0, 0, msg, null);
+					member.Say(SAY_NETMSG,"Clan chat:"+" |"+ 0xFFFFFFFF+" "+msg);
+			}
+		}
+	}
+}
+
+
+
+
+	
+void ReadChatFaction(Critter@ player,int FactionID)
+	{
+	string@ PlayerName=""+player.Name;
+			file f;
+			if( f.open( "save\\chat\\Faction"+FactionID+".ini", "r" ) == 0 )
+			{
+			string@[] AllPlayersAllMessage;
+				f.setPos( 0 );	
+						while( not f.isEndOfFile() )
+						{
+							string@ MessageFromFiles  = "";
+							f.readLine(MessageFromFiles);
+							AllPlayersAllMessage.insertLast(MessageFromFiles);
+						}
+	
+				string@ AllMessageInOne= join(AllPlayersAllMessage,"¶µ" );	
+				player.RunClientScript("factions@ChatMsgFromFiles", 0, 0, 0, AllMessageInOne, null);
+			}
+		   f.close();
+	
+	
+	}
+
+
+
+
+
+
+
+
+void ChatMsgFromFiles(int, int, int, string@ msg, int[]@)
+{
+
+string@[] AllPlayersAllMessage= splitEx(msg,"¶µ" );	
+string@ ChatFromFile="";
+ChatLog="";
+	for (uint viv = 1; viv < AllPlayersAllMessage.length(); viv++)
+		{
+			string@[] Msg= splitEx(AllPlayersAllMessage[viv],"±µ" );	
+			
+			string@ SendMessageFromFile="";
+				if (Msg[0]!=GetChosen().Name)
+					{
+						SendMessageFromFile="|"+0xFFFFFF00+" <"+ Msg[0]+"> |"+ 0xFFFFFFFF+" "+Msg[1];
+					}
+				else
+					{
+						SendMessageFromFile+=" |"+COLOR_RED+" <"+GetChosen().Name+"> |"+0xFFFFFFFF+" "+Msg[1];
+					}
+			ChatLog+="\n"+SendMessageFromFile;
+			if(valid(ClanChatOutput) && ClanChatOutput.IsVisible())
+			{
+				ClanChatOutput.Text(ChatLog);
+			}
+		}
+}
+
+
+void ChatMsgReceived(int, int, int, string@ msg, int[]@)
+{
+	ChatLog+="\n"+msg;
+	if(valid(ClanChatOutput) && ClanChatOutput.IsVisible())
+	{
+		ClanChatOutput.Text(ChatLog);
+	}
+}
+
+
+class ChatSendButton: IGUIElementCallbackMouseClick
+{
+	void OnMouseClick(int click)
+	{
+		if(click!=MOUSE_CLICK_LEFT) return;
+		string@ msg=ClanChatInput.GetText();
+		if(@msg==null || msg.length()==0) return;
+		while(msg[0]==" " || msg[0]=="	") msg[0]="";
+		while(msg[-1]==" " || msg[-1]=="	") msg[-1]="";
+		if(msg.length()==0) return;
+		RunServerScriptUnsafe("factions@unsafe_SendChatMessage", 0, 0, 0, msg, null);
+		ChatLog+="\n |"+COLOR_RED+" <"+GetChosen().Name+"> |"+0xFFFFFFFF+" "+msg;
+		ClanChatInput.Text("");
+		ClanChatOutput.Text(ChatLog);
+		RunServerScriptUnsafe("factions@unsafe_ReadChatFaction", 0, 0, 0, null, null);
+
+	}
+}
+
+
+
+class FactionChatInput: IGUIElementCallbackInit, IGUIElementCallbackKeyPress
+{
+	void OnInit()
+	{
+		@ClanChatInput=GUI_GetElementOptions();
+	}
+	
+	void OnKeyPress(uint8 key, string& keyText)
+	{
+		if(key==DIK_NUMPADENTER || key==DIK_RETURN)
+		{
+			ChatSendButton().OnMouseClick(MOUSE_CLICK_LEFT);
+		}
+		else if(key==DIK_ESCAPE) HideScreen(CLIENT_SCREEN_FACTIONS,0,0,0);
+	}
+}
+
+
+
+
+
+
+
+	FactionChatInput input;
+	
+	MyClanTab.AddElement(null, 0, 0)
+		.Position(coords[0], coords[1], coords[2], coords[3])
+		.Text("", FONT_FALLOUT, COLOR_GRAY, COLOR_WHITE, FT_CENTERY)
+		.TextInput(true, 255, COLOR_WHITE, false)
+		.AllowColorizing(true)
+		.CallbackInit(input)
+		.CallbackKeyPress(input);
+		
+	*/
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+//MSG CHAT CLAN END ___________END CHAT CLAN ________/////////////////////////////////
+
+
+
+
+
+//DEBUG    ADMIN COMMANDS
+
+
+//~r 4:† Bringer of Death™ †
+
+void unsafe_RenameFactionById(Critter& player, int,int,int, string@, int[]@)
+{
+	RFM(player,0,0,0);
+}
+
+
+
+void RFM( Critter& player, int p0, int p1, int p2 ) 
+	{
+		player.ShowScreen( SCREEN_SAY, 0, "answer_RenameFactionById" );
+		player.Say( SAY_SAY_TITLE, "Enter ID Player" );
+	// player.SayMsg( SAY_SAY_TITLE, TEXTMSG_GAME, 20161 );	
+    }
+
+	
+	
+	
+	
+	
+	
+	
+	
+
+void answer_RenameFactionById( Critter& player, uint answerI, string& answerS )
+{	   
+	int IDgamer=0;
+	StrToInt(answerS,IDgamer);
+	Critter@ cr = GetCritter(IDgamer);
+		
+	if (valid(cr) && cr.IsPlayer())
+	{
+		if (cr.Param[PLAYER_CALCULATOR]!=0) 
+		{
+			//player.Say( SAY_NETMSG, "Нет такого персонажа." );
+			player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+			return;
+		}
+
+		if (cr.Param[PLAYER_FACTION]!=0)
+		{
+		
+
+			player.Say(SAY_NETMSG,"old Name find:"+DEconverterUTF8toUINT(cr));
+			player.StatBase[ST_VAR0]=cr.Id;
+			player.ShowScreen( SCREEN_SAY, 0, "answer_newNameFaction" );
+			player.Say( SAY_SAY_TITLE, "Enter new Name" );
+		
+		//converterUTF8toUINT(cr,DEconverterUTF8toUINT(player));
+
+		}
+
+
+		if (cr.Param[PLAYER_FACTION]==0)
+		{
+
+		return;
+		
+		}	
+	}
+	else if( !valid( cr ) )
+    {
+        //player.Say( SAY_NETMSG, "Нет такого персонажа." );
+		player.SayMsg( SAY_NETMSG,TEXTMSG_GAME, 21431 );
+        return;
+    }
+
+	   
+	  
+}	
+
+
+
+	
+	
+	
+
+
+
+void answer_newNameFaction( Critter& player, uint answerI, string& answerS )
+	{	   	
+	Critter@ cr = GetCritter(player.Stat[ST_VAR0]);				
+	if (valid(cr) && cr.IsPlayer())
+	{
+	
+		for( uint ie = 821, je = 850; ie < je; ie++ )
+		{
+				cr.ParamBase[ie]=0;
+		}
+	
+		converterUTF8toUINT(cr,answerS);
+		player.Say( SAY_NETMSG, "Ok Name:"+answerS );
+		
+		Critter@[] players;
+		GetAllPlayers(players);
+		for (uint i = 0; i < players.length(); i++)
+		{
+			Critter@ playerFind = players[ i ];
+			if (valid(playerFind))
+			{
+				if (playerFind.Param[PLAYER_FACTION]==cr.Param[PLAYER_FACTION])
+				{
+					for( uint ie = 821, je = 850; ie < je; ie++ )
+					{
+						playerFind.ParamBase[ie]=0;
+					}
+					converterUTF8toUINT(playerFind,answerS);
+				}
+			}
+		}	
+	}
+					
+						
+	player.StatBase[ST_VAR0]=0;
+}
+
+
+
+
+
+
+
+
+void converterUTF8toUINT(Critter@ player,string@ Slovo)
+{
+    for( uint i = 0, j = Slovo.length(); i < j; i++ )
+	{
+		uint conv=Converter(Slovo[i]);
+
+		player.ParamBase[821+i]=conv;
+   		
+	}
+}
+
+void CopyFactionFileToClient( Critter& player)
+{
+	string@[] AllLinesFile;
+	file f;
+	if( f.open( "save\\factionsnames.ini", "r" ) == 0 )
+	{
+		f.setPos( 0 );
+		while( not f.isEndOfFile() )
+		{
+			//NumberFraction = f.readWord();
+			//StrToInt(NumberFraction,NumberFractionInt);
+			string@ MessageFromFiles  = "";
+		//	f.readLine(MessageFromFiles);
+			MessageFromFiles = f.readLine();
+			AllLinesFile.insertLast(MessageFromFiles);
+		}
+	}
+	f.close();
+	if (AllLinesFile.length()<1) return;
+	string@ AllLinesOnString= join(AllLinesFile,"ЂЂ" );
+	
+	int sisas=0;
+
+	player.RunClientScript( "Fraction@AllLinesFactionOneFile", sisas, sisas, sisas, AllLinesOnString, null );
+	
+}
+
+string@ DEconverterUTF8toUINT(Critter@ player)
+{
+	string@ AllParam="";
+    for( uint i = 821, j = 850; i < j; i++ )
+	{
+		if (player.ParamBase[i]!=0)
+		{
+		string@ conv = DeConverter(player.ParamBase[i]);
+		AllParam+=conv;
+		}
+	}
+	return AllParam;
+}
+
+string@ DeConverter(uint Number)
+{
+    string allLetters = __ValidNameLettersCommon + __ValidNameLettersCulture1 + __ValidNameLettersCulture2;
+    for( uint i = 0, j = allLetters.length(); i < j; i++ )
+	{
+        //if( findFirst( allLetters, Bykva ) == -1 )
+		if (i==Number)
+		{
+			//player.Say( SAY_NETMSG, "Вы используете запрещенный символ. Попросите Администратора после переименовать вас как вы желаете");
+			//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20173);
+            return allLetters[i];	
+		}
+		//else return
+	}
+
+   return "";
+}
+
+uint Converter(const string@ Bykva)
+{
+    string allLetters = __ValidNameLettersCommon + __ValidNameLettersCulture1 + __ValidNameLettersCulture2;
+    for( uint i = 0, j = allLetters.length(); i < j; i++ )
+	{
+        //if( findFirst( allLetters, Bykva ) == -1 )
+		if (allLetters[i]==Bykva)
+		{
+			//player.Say( SAY_NETMSG, "Вы используете запрещенный символ. Попросите Администратора после переименовать вас как вы желаете");
+			//player.SayMsg( SAY_NETMSG, TEXTMSG_GAME, 20173);
+            return i;	
+		}	
+	}	
+   return 0;
+}
+
+
+
+
+
+
+
+void unsafe_SaveInClientNameFactions( Critter& player, int,  int , int, string@, int[] @  )
+{
+	
+	CopyFactionFileToClient(player);
+}
+
+
+
+void JoinAllInOne() //Соединение всех фрак файлов в один для отправки клиенту
+{
+	file fa;
+	if( fa.open( "save\\Fractions.txt", "w" ) == 0 )
+	{
+	
+	}
+	fa.close();
+
+	string NumberFraction;
+	int CountFaction=0;
+	file f;
+	if( f.open( "fractionnumber.ini", "r" ) == 0 )
+	{
+		f.setPos( 0 );
+		while( not f.isEndOfFile() )
+		{
+			NumberFraction = f.readWord();
+			StrToInt(NumberFraction,CountFaction);
+		}
+	}
+	f.close();
+
+	
+	for( uint NOMERFACTION = 0; NOMERFACTION < 200; NOMERFACTION++ )
+	{
+		int idF=0;
+		int countF=0;
+		int MoneyF=0;
+		int SierraF=0;
+		int SoborF=0;
+		int ReddingF=0;
+		int KillFactionsF=0;
+		int KillNoFactionsF=0;
+		int ExpF=0;
+		int DeadsF=0;
+		int OnlineF=0;
+	
+	
+		file ff;
+		if ( ff.open( "save\\f"+NOMERFACTION+".ini", "r" ) == 0 )
+		{
+			ff.setPos( 0 );
+			while( not ff.isEndOfFile() )
+			{
+				if( ff.readWord() == ">")
+				{
+					 idF = ff.readNumber();
+					 countF = ff.readNumber();
+					 MoneyF = ff.readNumber();
+					 SierraF = ff.readNumber();
+					 SoborF = ff.readNumber();
+					 ReddingF = ff.readNumber();
+					 KillFactionsF = ff.readNumber();
+					 KillNoFactionsF = ff.readNumber();
+					 ExpF = ff.readNumber();
+					 DeadsF = ff.readNumber();
+					 OnlineF = ff.readNumber();
+				}
+			}
+		}
+		ff.close();
+
+		if (countF>0)
+		{
+			file SaveFaction;
+			if( SaveFaction.open( "save\\Fractions.txt", "a" ) == 0 )
+			{
+						SaveFaction.writeString( "\r\n"
+						+"> "+idF
+						+ " "+countF
+						+ " "+MoneyF
+						+ " "+SierraF
+						+ " "+SoborF
+						+ " "+ReddingF
+						+ " "+KillFactionsF
+						+ " "+KillNoFactionsF
+						+ " "+ExpF
+						+ " "+DeadsF
+						+ " "+OnlineF);
+			}
+			SaveFaction.close();
+		}	
+	}
+}
+
+
+//import void CopyFactionFileToClient( Critter& player) from "client_party";
+
+
+void unsafe_AllFactionToFileClient( Critter& player, int,  int , int, string@, int[] @  )
+{
+	string@[] idF;
+	string@[] countF;
+	string@[] MoneyF;
+	string@[] SierraF;
+	string@[] SoborF;
+	string@[] ReddingF;
+	string@[] KillFactionsF;
+	string@[] KillNoFactionsF;
+	string@[] ExpF;
+	string@[] DeadsF;
+	string@[] OnlineF;
+	
+			file fa;
+			if( fa.open( "save\\Fractions.txt", "r" ) == 0 )
+			{
+				fa.setPos( 0 );
+			        while( not fa.isEndOfFile() )
+					{
+						if( fa.readWord() == ">" )
+						{
+							idF.insertLast(fa.readWord());
+							countF.insertLast(fa.readWord());
+							MoneyF.insertLast(fa.readWord());
+															
+							SierraF.insertLast(fa.readWord());
+							SoborF.insertLast(fa.readWord());
+							ReddingF.insertLast(fa.readWord());
+							KillFactionsF.insertLast(fa.readWord());
+							
+							KillNoFactionsF.insertLast(fa.readWord());
+							ExpF.insertLast(fa.readWord());					
+							DeadsF.insertLast(fa.readWord());
+							OnlineF.insertLast(fa.readWord());
+						}
+					}
+			}
+		   fa.close();			
+	
+if (idF.length()<1) return;
+	
+
+//idF	
+string@ AllidFSTR= join(idF,"ЂЂ" );
+//countF	
+string@ AllcountFSTR= join(countF,"ѓѓ" );
+//MoneyF
+string@ AllMoneyFSTR= join(MoneyF,"ЉЉ" );
+//SierraF
+string@ AllSierraFSTR= join(SierraF,"‰‰" );
+//SoborF	
+string@ AllSoborFSTR= join(SoborF,"ЋЋ" );
+//ReddingF
+string@ AllReddingFSTR= join(ReddingF,"ЏЏ" );
+//KillFactionsF
+string@ AllKillFactionsFSTR= join(KillFactionsF,"……" );
+//KillNoFactionsF
+string@ AllKillNoFactionsFSTR= join(KillNoFactionsF,"ЌЌ" );	
+//ExpF
+string@ AllExpFSTR= join(ExpF,"µµ" );
+//DeadsF
+string@ AllDeadsFSTR= join(DeadsF,"ЊЊ" );
+//OnlineF	
+string@ AllOnlineFSTR= join(OnlineF,"°°" );
+	
+
+
+
+string@[] AllStrings ={AllidFSTR,AllcountFSTR,AllMoneyFSTR,AllSierraFSTR,AllSoborFSTR,AllReddingFSTR,AllKillFactionsFSTR,
+AllKillNoFactionsFSTR,AllExpFSTR,AllDeadsFSTR,AllOnlineFSTR};
+	
+string@ AllINONE= join(AllStrings,"ґґ" );	
+	
+	
+	
+int sisas=0;
+
+player.RunClientScript( "client_party@AllRatingSaveInFileClient", sisas, sisas, sisas, AllINONE, null );
+	
+	
+	
+} 
+
+
+void unsafe_TakeYourFaction( Critter& player, int,  int , int, string@, int[] @  )
+{
+	if (player.Param[PLAYER_FACTION]==0)return;
+	
+	int[] AIdPlayer;
+	string@[] ANamePlayer;
+	int[] RankPlayer;
+	
+		//player.Say(SAY_NETMSG,"|0xFF0000"+" ============FACTION=============");
+	
+		file f;
+		if( f.open( "save\\ff"+player.Param[PLAYER_FACTION]+".ini", "r" ) == 0 )
+			{
+				f.setPos( 0 );
+				while( not f.isEndOfFile() )
+					{
+						if( f.readWord() == ">")
+							{
+								int IdPlayer = f.readNumber();
+								string NamePlayer = f.readWord();
+								//int PlayerAccess = f.readNumber();
+								int PlayerAccess=-1;
+														
+								while( PlayerAccess==-1 )
+									{
+										int Position = f.getPos();
+										int NumberAccess = f.readNumber();
+										if (NumberAccess==0 || NumberAccess==1 || NumberAccess==2 || NumberAccess==3 || NumberAccess==4|| NumberAccess==5|| NumberAccess==6|| NumberAccess==7|| NumberAccess==8)
+											{
+												PlayerAccess=NumberAccess;
+											}
+										else
+											{
+												f.setPos(Position);
+												string NamePlayerPart2 = f.readWord();
+												NamePlayer= NamePlayer+" "+NamePlayerPart2;	
+											}
+									}
+							//	player.Say(SAY_NETMSG,"|0xFF0000"+" id: "+"|0xFFFFFF"+" "+IdPlayer+" "+"|0xFF0000"+" Name: "+"|0xFFFFFF"+" "+NamePlayer+" "+"|0xFF0000"+" Access: "+"|0xFFFFFF"+" "+PlayerAccess);
+								
+								AIdPlayer.insertLast(IdPlayer);
+								
+								ANamePlayer.insertLast(NamePlayer);
+								RankPlayer.insertLast(PlayerAccess);
+										
+							}
+						
+					}
+			}
+		f.close();
+		
+	if (AIdPlayer.length()<=0) return;
+	//AIdPlayer	
+	string@[] AllIdPlayer;	
+			   for (uint I = 0; I < AIdPlayer.length(); I++)
+				{
+				AllIdPlayer.insertLast(""+AIdPlayer[I]);		
+				}
+
+	string@ AllIdPlayerSTR= join(AllIdPlayer,"ЂЂ" );//AllIds
+
+
+	//NamePlayer	
+	string@ AllNamePlayerSTR= join(ANamePlayer,"ѓѓ" );//AllName
+
+
+
+	//Rankk
+	string@[] AllRankPlayer;	
+			   for (uint I1 = 0; I1 < RankPlayer.length(); I1++)
+				{
+				AllRankPlayer.insertLast(""+RankPlayer[I1]);		
+				}
+
+	string@ AllRankPlayerSTR= join(AllRankPlayer,"ЉЉ" );//AllRank
+
+
+
+
+
+
+string@[] AllStrings ={AllIdPlayerSTR,AllNamePlayerSTR,AllRankPlayerSTR};
+	
+string@ AllINONE= join(AllStrings,"ґґ" );	
+	
+	
+int sisas=0;
+int NomerFrakcii=player.Param[PLAYER_FACTION];
+
+player.RunClientScript( "client_party@AllPlayersSaveInFile", NomerFrakcii, sisas, sisas, AllINONE, null );
+	
+	
+
+	//player.Say(SAY_NETMSG,"|0xFF0000"+" ==============================");
+	
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#endif   //Server
+
+#ifdef __CLIENT
+
+
+
+	void AllClientSaveInFileClient(int, int ,int , string@ inputName, int[]@ allIdsClients )
+		{			
+			string@[] AllStrings= splitEx(inputName,"ґґ" );	
+			
+			string@ AllNameClients = AllStrings[0];
+			string@ AllRadioTake = AllStrings[1];
+			string@ AllFactionIds = AllStrings[2];
+
+			
+			string@[] NameClients=  splitEx(AllNameClients,"ѓѓ" );
+			string@[] RadioTake=  splitEx(AllRadioTake,"ЉЉ" );
+			string@[] FactionIds=  splitEx(AllFactionIds,"ЂЂ" );
+	//Message(RadioTake[0]);
+		
+			
+			
+				file f;
+
+				if( f.open( "data\\cache\\onlineCheck.txt", "w" ) == 0 )
+				{
+					f.setPos( 0 );
+					for( uint yyt = 0, jgt = allIdsClients.length(); yyt < jgt; yyt++ )
+						{
+
+									f.writeString( "\r\n"
+									+"> "+FactionIds[yyt]
+									+ " "+allIdsClients[yyt]
+									+ " "+RadioTake[yyt]
+									+ " "+NameClients[yyt]+" |");
+							
+						}			
+				}
+				f.close();
+
+		}
+		
+		
+		
+
+	void AllRatingSaveInFileClient(int, int ,int , string@ inputName, int[]@ )
+		{			
+			string@[] AllStrings= splitEx(inputName,"ґґ" );	
+			
+			string@ AllidFSTR = AllStrings[0];
+			string@ AllcountFSTR = AllStrings[1];
+			string@ AllMoneyFSTR = AllStrings[2];
+			string@ AllSierraFSTR = AllStrings[3];
+			string@ AllSoborFSTR = AllStrings[4];
+			string@ AllReddingFSTR = AllStrings[5];				
+			string@ AllKillFactionsFSTR = AllStrings[6];
+			string@ AllKillNoFactionsFSTR = AllStrings[7];		
+			string@ AllExpFSTR = AllStrings[8];
+			string@ AllDeadsFSTR = AllStrings[9];		
+			string@ AllOnlineFSTR = AllStrings[10];
+
+			
+			string@[] idF=  splitEx(AllidFSTR,"ЂЂ" );
+			string@[] countF=  splitEx(AllcountFSTR,"ѓѓ" );
+			string@[] MoneyF=  splitEx(AllMoneyFSTR,"ЉЉ" );
+			string@[] SierraF=  splitEx(AllSierraFSTR,"‰‰" );
+			string@[] SoborF=  splitEx(AllSoborFSTR,"ЋЋ" );
+			string@[] ReddingF=  splitEx(AllReddingFSTR,"ЏЏ" );
+			string@[] KillFactionsF=  splitEx(AllKillFactionsFSTR,"……" );
+			string@[] KillNoFactionsF=  splitEx(AllKillNoFactionsFSTR,"ЌЌ" );
+			string@[] ExpF=  splitEx(AllExpFSTR,"µµ" );
+			string@[] DeadsF=  splitEx(AllDeadsFSTR,"ЊЊ" );
+			string@[] OnlineF=  splitEx(AllOnlineFSTR,"°°" );
+	
+		
+			
+			
+				file f;
+
+				if( f.open( "data\\cache\\FactionAllRatting.txt", "w" ) == 0 )
+				{
+					f.setPos( 0 );
+					for( uint yyt = 0, jgt = idF.length(); yyt < jgt; yyt++ )
+						{
+
+									f.writeString( "\r\n"
+									+"> "+idF[yyt]
+									+ " "+countF[yyt]
+									+ " "+MoneyF[yyt]
+									+ " "+SierraF[yyt]
+									+ " "+SoborF[yyt]
+									+ " "+ReddingF[yyt]
+									+ " "+KillFactionsF[yyt]
+									+ " "+KillNoFactionsF[yyt]
+									+ " "+ExpF[yyt]
+									+ " "+DeadsF[yyt]
+									+ " "+OnlineF[yyt]);
+							
+						}			
+				}
+				f.close();
+
+		}
+		
+
+
+
+
+
+
+void AllLinesFactionOneFile(int, int ,int , string@ inputName, int[]@ )
+{	
+	Log("test "++AllStrings[0]);
+		string@[] AllStrings= splitEx(inputName,"ЂЂ" );	
+		
+		Message("TestOK:"+AllStrings[0]);
+
+		file f;
+
+		if( f.open( "data\\cache\\fname.txt", "w" ) == 0 )
+		{
+			f.setPos( 0 );
+			for( uint yyt = 0, jgt = AllStrings.length(); yyt < jgt; yyt++ )
+			{
+				f.writeString( "\r\n"+""+AllStrings[yyt]);					
+			}			
+		}
+
+}
+
+	
+void AllPlayersSaveInFile(int NomerFrakcii, int ,int , string@ inputName, int[]@ )
+{			
+			string@[] AllStrings= splitEx(inputName,"ґґ" );	
+			
+			string@ AllIdPlayerSTR = AllStrings[0];
+			string@ AllNamePlayerSTR = AllStrings[1];
+			string@ AllRankPlayerSTR = AllStrings[2];
+			
+			
+			string@[] AllIdPlayer=  splitEx(AllIdPlayerSTR,"ЂЂ" );
+			string@[] AllNamePlayer=  splitEx(AllNamePlayerSTR,"ѓѓ" );
+			string@[] AllRankPlayer=  splitEx(AllRankPlayerSTR,"ЉЉ" );
+
+			
+			
+			
+				file f;
+
+				if( f.open( "data\\cache\\ff"+NomerFrakcii+".txt", "w" ) == 0 )
+				{
+					f.setPos( 0 );
+					for( uint yyt = 0, jgt = AllIdPlayerSTR.length(); yyt < jgt; yyt++ )
+						{
+
+									f.writeString( "\r\n"
+									+"> "+AllIdPlayer[yyt]
+									+ " "+AllNamePlayer[yyt]
+									+ " "+AllRankPlayer[yyt]);
+							
+						}			
+				}
+				f.close();
+
+}
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+
+
+	string@[] AIdPlayers;
+	string@[] ANamePlayers;
+	string@[] ARankPlayers;	
+	void TakePlayersInforamtion()  
+	{
+		CritterCl@ Chosen = GetChosen();
+		if (!valid(Chosen)) return;
+		file f;
+		if( f.open( "data\\cache\\ff"+Chosen.Param[PLAYER_FACTION]+".txt", "r" ) == 0 )
+		{
+			f.setPos( 0 );
+			AIdPlayers.resize( 0 );
+			ANamePlayers.resize( 0 );
+			ARankPlayers.resize( 0 );
+
+			while( not f.isEndOfFile() )
+				{
+					if( f.readWord() == NAME_TOKEN )
+						{
+							AIdPlayers.insertLast(f.readWord());
+							ANamePlayers.insertLast(f.readWord());
+							ARankPlayers.insertLast(f.readWord());
+						}
+				}
+		}
+		f.close();
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	void AllRatingSaveInFile(int, int ,int , string@ inputName, int[]@ )
+		{			
+			string@[] AllStrings= splitEx(inputName,"ґґ" );	
+			string@ AllNumFactionSTR = AllStrings[0];
+			string@ AllNameFractionSTR = AllStrings[1];
+			string@ AllRankkFactionSTR = AllStrings[2];
+			string@ AllExppFactionSTR = AllStrings[3];
+			string@ AllCounttFactionSTR = AllStrings[4];
+			string@ AllRankSierrafSTR = AllStrings[5];				
+			string@ AllRankSoborfSTR = AllStrings[6];
+			string@ AllRankReddfSTR = AllStrings[7];		
+			string@ AllKillCountFSTR = AllStrings[8];
+			string@ AllKillCountNoFSTR = AllStrings[9];		
+			string@ AllDeathsCounttSTR = AllStrings[10];
+			string@ AllRatingOnlineeSTR = AllStrings[11];
+			
+			string@[] numfraction=  splitEx(AllNumFactionSTR,"ЂЂ" );
+			string@[] NameFraction=  splitEx(AllNameFractionSTR,"ѓѓ" );
+			string@[] Rankk=  splitEx(AllRankkFactionSTR,"ЉЉ" );
+			string@[] Expp=  splitEx(AllExppFactionSTR,"‰‰" );
+			string@[] Countt=  splitEx(AllCounttFactionSTR,"ЋЋ" );
+			string@[] RatingSierraa=  splitEx(AllRankSierrafSTR,"ЏЏ" );
+			string@[] RatingSoborr=  splitEx(AllRankSoborfSTR,"……" );
+			string@[] RatingReddingg=  splitEx(AllRankReddfSTR,"ЌЌ" );
+			string@[] KillCountFracc=  splitEx(AllKillCountFSTR,"µµ" );
+			string@[] KillCountNoFracc=  splitEx(AllKillCountNoFSTR,"ЊЊ" );
+			string@[] DeathsCountt=  splitEx(AllDeathsCounttSTR,"¶¶" );
+			string@[] RatingOnlinee=  splitEx(AllRatingOnlineeSTR,"°°" );			
+			
+			
+			
+			
+				file f;
+
+				if( f.open( "data\\cache\\FactionAllRatting.txt", "w" ) == 0 )
+				{
+					f.setPos( 0 );
+					for( uint yyt = 0, jgt = AllNumFactionSTR.length(); yyt < jgt; yyt++ )
+						{
+
+									f.writeString( "\r\n"
+									+"> "+numfraction[yyt]
+									+ " "+NameFraction[yyt]
+									+ " "+Rankk[yyt]
+									+ " "+Expp[yyt]
+									+ " "+Countt[yyt]
+									+ " "+RatingSierraa[yyt]
+									+ " "+RatingSoborr[yyt]
+									+ " "+RatingReddingg[yyt]
+									+ " "+KillCountFracc[yyt]
+									+ " "+KillCountNoFracc[yyt]
+									+ " "+DeathsCountt[yyt]
+									+ " "+RatingOnlinee[yyt]);
+							
+						}			
+				}
+				f.close();
+
+}
+				
+	string@[] idF;
+	string@[] countF;
+	string@[] MoneyF;
+	string@[] SierraF;
+	string@[] SoborF;
+	string@[] ReddingF;
+	string@[] KillFactionsF;
+	string@[] KillNoFactionsF;
+	string@[] ExpF;
+	string@[] DeadsF;
+	string@[] OnlineF;	
+	
+		
+void TakeFactionsInforamtion()  
+	{	
+		
+		CritterCl@ Chosen = GetChosen();
+		//Rating
+		if (!valid(Chosen)) return;
+		file f;
+		if( f.open( "data\\cache\\FactionAllRatting.txt", "r" ) == 0 )
+		{
+			f.setPos( 0 );
+				idF.resize( 0 );
+				countF.resize( 0 );
+				MoneyF.resize( 0 );
+				SierraF.resize( 0 );
+				SoborF.resize( 0 );
+				ReddingF.resize( 0 );
+				KillFactionsF.resize( 0 );
+				KillNoFactionsF.resize( 0 );
+				ExpF.resize( 0 );
+				DeadsF.resize( 0 );
+				OnlineF.resize( 0 );
+	
+			while( not f.isEndOfFile() )
+				{
+					if( f.readWord() == NAME_TOKEN )
+						{
+							idF.insertLast(f.readWord());
+							countF.insertLast(f.readWord());
+							MoneyF.insertLast(f.readWord());
+							SierraF.insertLast(f.readWord());
+							SoborF.insertLast(f.readWord());
+							ReddingF.insertLast(f.readWord());
+							KillFactionsF.insertLast(f.readWord());
+							KillNoFactionsF.insertLast(f.readWord());
+							ExpF.insertLast(f.readWord());
+							DeadsF.insertLast(f.readWord());
+							OnlineF.insertLast(f.readWord());
+						}
+				}		
+		}
+		f.close();	
+	}
+
+
+		
+		
+#endif   //Client
+

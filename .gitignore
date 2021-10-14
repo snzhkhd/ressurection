@@ -1,0 +1,10 @@
+/Tools
+Client/data/cache/
+*.fomapb
+*.fosb
+*.fosp
+*.fo
+*.client
+/Client
+/Docs
+/Server_orig

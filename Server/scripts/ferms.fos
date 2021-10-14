@@ -1,0 +1,7 @@
+// client
+
+
+void r_CreateFerm()
+{
+	RunServerScriptUnsafe("main@unsafe_CreateBase", 0, 0, 0, null, null);
+}

@@ -1,0 +1,197 @@
+Application
+	Name        FOnlineServer
+	Version     476
+	OS          6.2.9200 ()
+	Timestamp   2021.09.05 16:57:37
+
+Exception
+	Code      EXCEPTION_ACCESS_VIOLATION
+	Address   0x0FA56287
+	Flags     0x0
+	Info      Attempted to read to an 0x23BD3FFF
+
+Thread 'Main' (17700, current)
+	test, CreateDir + 4119
+	test, DllMainEx + 7275
+	test, DllMainEx + 14898
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'GUI' (17932)
+	ntdll, NtWaitForMultipleObjects + 12
+	USER32, MsgWaitForMultipleObjectsEx + 355
+	USER32, MsgWaitForMultipleObjects + 31
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'Unknown' (18040)
+	ntdll, ZwWaitForWorkViaWorkerFactory + 12
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'Unknown' (18196)
+	ntdll, ZwWaitForWorkViaWorkerFactory + 12
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'Unknown' (16528)
+	ntdll, NtWaitForMultipleObjects + 12
+	combase, CoGetMalloc + 2453
+	combase, CoGetMalloc + 2572
+	combase, IIDFromString + 363
+	combase, CoGetObjectContext + 1606
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'GUIUpdate' (15720)
+	ntdll, NtDelayExecution + 12
+	KERNELBASE, Sleep + 15
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'ScriptTimeout' (16424)
+	ntdll, NtDelayExecution + 12
+	KERNELBASE, Sleep + 15
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'NetListen' (13952)
+	ntdll, NtWaitForSingleObject + 12
+	mswsock, sethostname + 10294
+	WS2_32, WSAAccept + 153
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'NetWork0' (16640)
+	ntdll, ZwRemoveIoCompletion + 12
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'NetWork1' (6152)
+	ntdll, ZwRemoveIoCompletion + 12
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'NetWork2' (15076)
+	ntdll, ZwRemoveIoCompletion + 12
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Thread 'NetWork3' (14484)
+	ntdll, ZwRemoveIoCompletion + 12
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	FOnlineServer, (function-name not available) + 0
+	KERNEL32, BaseThreadInitThunk + 36
+	ntdll, RtlInitializeExceptionChain + 143
+	ntdll, RtlInitializeExceptionChain + 90
+
+Loaded modules
+	D:\sdk\ress\Server\FOnlineServer.exe (00400000)
+	C:\Windows\SYSTEM32\ntdll.dll (775B0000)
+	C:\Windows\SYSTEM32\KERNEL32.DLL (756D0000)
+	C:\Windows\SYSTEM32\KERNELBASE.dll (75D90000)
+	C:\Windows\SYSTEM32\USER32.dll (753D0000)
+	C:\Windows\SYSTEM32\ADVAPI32.dll (75D10000)
+	C:\Windows\SYSTEM32\WS2_32.dll (75990000)
+	C:\Windows\SYSTEM32\dbghelp.dll (73790000)
+	C:\Windows\SYSTEM32\PSAPI.DLL (760D0000)
+	C:\Windows\SYSTEM32\WINMM.dll (72330000)
+	C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_5.82.9600.17810_none_7c5b6194aa0716f1\COMCTL32.dll (5B680000)
+	C:\Windows\SYSTEM32\GDI32.dll (752C0000)
+	C:\Windows\SYSTEM32\SHELL32.dll (760E0000)
+	C:\Windows\SYSTEM32\ole32.dll (75F00000)
+	C:\Windows\SYSTEM32\msvcrt.dll (75A40000)
+	C:\Windows\SYSTEM32\sechost.dll (75BB0000)
+	C:\Windows\SYSTEM32\RPCRT4.dll (75580000)
+	C:\Windows\SYSTEM32\NSI.dll (774D0000)
+	C:\Windows\SYSTEM32\WINMMBASE.dll (72300000)
+	C:\Windows\SYSTEM32\combase.dll (75810000)
+	C:\Windows\SYSTEM32\SHLWAPI.dll (75C00000)
+	C:\Windows\SYSTEM32\SspiCli.dll (75CF0000)
+	C:\Windows\SYSTEM32\cfgmgr32.dll (75540000)
+	C:\Windows\SYSTEM32\DEVOBJ.dll (74160000)
+	C:\Windows\SYSTEM32\CRYPTBASE.dll (74D80000)
+	C:\Windows\SYSTEM32\bcryptPrimitives.dll (74D20000)
+	C:\Windows\system32\IMM32.DLL (75100000)
+	C:\Windows\SYSTEM32\MSCTF.dll (773A0000)
+	C:\Windows\system32\uxtheme.dll (73FE0000)
+	C:\Windows\system32\dwmapi.dll (742E0000)
+	C:\Windows\SYSTEM32\kernel.appcore.dll (746D0000)
+	C:\Windows\SYSTEM32\CRYPTSP.dll (74630000)
+	C:\Windows\system32\rsaenh.dll (74600000)
+	C:\Windows\SYSTEM32\bcrypt.dll (745E0000)
+	C:\Windows\SYSTEM32\clbcatq.dll (75640000)
+	C:\Windows\system32\msimtf.dll (0F600000)
+	C:\Program Files (x86)\Common Files\microsoft shared\ink\tiptsf.dll (73F20000)
+	C:\Windows\SYSTEM32\OLEAUT32.dll (75B10000)
+	D:\sdk\ress\Server\scripts\fonline_test.dll (0F4D0000)
+	D:\sdk\ress\Server\scripts\test.dll (0FA50000)
+	C:\Windows\system32\mswsock.dll (736D0000)
+	D:\sdk\ress\Server\scripts\fonline_tla.dll (09ED0000)
+
+AngelScript
+	0) parameters : int getParam_Perception(Critter&inout cr, uint) : 10820, 1
+
